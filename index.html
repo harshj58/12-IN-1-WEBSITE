@@ -3,147 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intelligence OS</title>
+    <title>Intelligence OS v3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background-color: #020617; color: white; font-family: ui-sans-serif, system-ui; overflow: hidden; }
-        .glass { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
-        .app-card:hover { transform: scale(1.05); background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.5); }
-        ::-webkit-scrollbar { display: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-in { animation: fadeIn 0.3s ease-out forwards; }
+        body { background: #020617; color: white; font-family: ui-sans-serif, system-ui; overflow: hidden; }
+        .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .app-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 2rem; }
+        .app-card:hover { transform: translateY(-5px); background: rgba(59, 130, 246, 0.1); border-color: #3b82f6; }
+        @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-4px,-4px); } 75% { transform: translate(4px,4px); } }
+        .vibrate { animation: shake 0.1s infinite; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useRef, useEffect } = React;
-
-        const APPS = [
-            { id: "uni", name: "Universal AI", icon: "🧠", color: "from-blue-500", prompt: "You are a witty, helpful AI. If someone says 10+9=21, say 'You dumb'. Use wit." },
-            { id: "med", name: "Med-AI Pro", icon: "⚕️", color: "from-emerald-500", prompt: "You are a professional medical assistant. Provide health insights and terminology." },
-            { id: "code", name: "Code Wizard", icon: "💻", color: "from-purple-500", prompt: "You are a Senior Software Engineer. Provide clean, optimized code snippets." },
-            { id: "math", name: "Math Solver", icon: "🔢", color: "from-orange-500", prompt: "You are a mathematical genius. Explain steps clearly using logic." },
-            { id: "writer", name: "Ghost Writer", icon: "✍️", color: "from-pink-500", prompt: "You are a creative writer. Write blogs, stories, and essays with flair." },
-            { id: "law", name: "Legal Bot", icon: "⚖️", color: "from-red-500", prompt: "You are a legal consultant. Explain law terms and contract logic clearly." },
-            { id: "stock", name: "Stock Pulse", icon: "📈", color: "from-cyan-500", prompt: "You are a market analyst. Discuss stocks, crypto, and trends." },
-            { id: "trans", name: "Translator", icon: "🌐", color: "from-indigo-500", prompt: "You are a master translator. Translate any text accurately into any language." },
-            { id: "gym", name: "Gym Coach", icon: "🏋️", color: "from-lime-500", prompt: "You are a pro fitness coach. Create workouts and diet plans." },
-            { id: "cyber", name: "Cyber Sec", icon: "🛡️", color: "from-slate-500", prompt: "You are a cybersecurity expert. Discuss pentesting, safety, and encryption." },
-            { id: "travel", name: "Travel AI", icon: "✈️", color: "from-teal-500", prompt: "You are a luxury travel agent. Plan amazing trips and itineraries." },
-            { id: "chef", name: "Chef Bot", icon: "🍳", color: "from-amber-500", prompt: "You are a 5-star chef. Provide recipes and cooking tips." }
-        ];
+        const { useState, useEffect } = React;
 
         const App = () => {
-            const [apiKey, setApiKey] = useState('');
-            const [isAuth, setIsAuth] = useState(false);
+            const [view, setView] = useState('hub');
             const [activeApp, setActiveApp] = useState(null);
-            const [messages, setMessages] = useState([]);
-            const [input, setInput] = useState('');
-            const [loading, setLoading] = useState(false);
-            const endRef = useRef(null);
+            const [vibrate, setVibrate] = useState(false);
+            
+            // App States
+            const [transIn, setTransIn] = useState('');
+            const [transOut, setTransOut] = useState('');
+            const [score, setScore] = useState(0); // For Mini Game
 
-            useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
-            const onChat = async () => {
-                if (!input.trim() || loading) return;
-                const userMsg = input.trim();
-                
-                // Secret triggers for Universal AI
-                if (activeApp.id === 'uni') {
-                    if (userMsg.replace(/\s/g, '') === '10+9=21') {
-                        const utterance = new SpeechSynthesisUtterance("You dumb");
-                        utterance.pitch = 0.5;
-                        window.speechSynthesis.speak(utterance);
-                    }
-                }
-
-                setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-                setInput('');
-                setLoading(true);
-
-                try {
-                    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            model: "llama-3.3-70b-versatile", 
-                            messages: [{ role: "system", content: activeApp.prompt }, ...messages.slice(-5), { role: 'user', content: userMsg }]
-                        })
-                    });
-                    const data = await res.json();
-                    setMessages(prev => [...prev, { role: 'assistant', content: data.choices[0].message.content }]);
-                } catch (e) {
-                    setMessages(prev => [...prev, { role: 'assistant', content: "⚠️ Connection Error. Check Key." }]);
-                } finally { setLoading(false); }
+            const speak = (text, p = 1) => {
+                window.speechSynthesis.cancel();
+                const m = new SpeechSynthesisUtterance(text);
+                m.pitch = p;
+                window.speechSynthesis.speak(m);
             };
 
-            if (!isAuth) {
-                return (
-                    <div className="h-screen flex items-center justify-center p-6 bg-slate-950">
-                        <div className="glass p-10 rounded-[3rem] w-full max-w-md text-center">
-                            <h1 className="text-4xl font-black uppercase tracking-tighter mb-2">OS Hub</h1>
-                            <p className="text-blue-500 font-bold text-[10px] tracking-[0.4em] mb-8 uppercase">Initialize System</p>
-                            <input type="password" placeholder="Groq API Key" className="w-full p-4 rounded-2xl bg-slate-900 border border-slate-800 mb-4 text-center text-sm" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
-                            <button onClick={() => apiKey.startsWith('gsk_') ? setIsAuth(true) : alert("Invalid Key")} className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase tracking-widest active:scale-95 transition-all">Launch OS</button>
-                            <a href="https://console.groq.com/keys" target="_blank" className="block mt-6 text-[10px] text-blue-400 font-bold uppercase tracking-widest">Get Access Key</a>
-                        </div>
-                    </div>
-                );
-            }
+            const handleUniversalInput = (val) => {
+                const norm = val.replace(/\s/g, '').toLowerCase();
+                if (norm === '67') {
+                    setVibrate(true); speak("6 7", 1.2);
+                    setTimeout(() => setVibrate(false), 800);
+                } else if (norm === '10+9=21') {
+                    setVibrate(true); speak("You dumb", 0.5);
+                    setTimeout(() => setVibrate(false), 1000);
+                }
+            };
 
-            if (activeApp) {
-                return (
-                    <div className="h-screen flex flex-col animate-in">
-                        <header className="p-4 glass flex justify-between items-center">
-                            <button onClick={() => {setActiveApp(null); setMessages([])}} className="text-blue-500 font-black text-xs uppercase">← Back to Hub</button>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm">{activeApp.icon}</span>
-                                <span className="font-black uppercase text-xs">{activeApp.name}</span>
-                            </div>
-                            <div className="w-12"></div>
-                        </header>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-32">
-                            {messages.map((m, i) => (
-                                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`p-4 rounded-2xl max-w-[85%] text-sm ${m.role === 'user' ? 'bg-blue-600' : 'glass'}`}>
-                                        {m.content}
-                                    </div>
+            const renderModule = () => {
+                switch(activeApp?.id) {
+                    case 'stock':
+                        return (
+                            <div className="p-6 space-y-4 animate-in">
+                                <div className="glass p-6 rounded-3xl text-center">
+                                    <p className="text-amber-500 font-bold text-[10px] uppercase tracking-widest mb-2">Gold Spot</p>
+                                    <h2 className="text-4xl font-black">$2,342.10</h2>
                                 </div>
-                            ))}
-                            {loading && <div className="text-blue-500 text-[10px] font-black animate-pulse uppercase tracking-[0.3em]">Processing...</div>}
-                            <div ref={endRef} />
-                        </div>
-                        <footer className="p-4 fixed bottom-0 w-full glass">
-                            <div className="max-w-3xl mx-auto flex gap-2">
-                                <input className="flex-1 p-4 rounded-xl bg-slate-900/50 border border-white/10 text-sm focus:border-blue-500 outline-none" placeholder={`Message ${activeApp.name}...`} value={input} onChange={(e) => setInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && onChat()} />
-                                <button onClick={onChat} className="bg-blue-600 px-6 rounded-xl font-black uppercase text-[10px]">Send</button>
+                                <div className="glass p-6 rounded-3xl text-center">
+                                    <p className="text-orange-500 font-bold text-[10px] uppercase tracking-widest mb-2">Bitcoin</p>
+                                    <h2 className="text-4xl font-black">$98,412.00</h2>
+                                </div>
                             </div>
-                        </footer>
-                    </div>
-                );
-            }
+                        );
+                    case 'trans':
+                        return (
+                            <div className="p-4 flex flex-col gap-4 h-full">
+                                <textarea className="w-full h-1/3 glass p-4 rounded-2xl outline-none resize-none" placeholder="Enter text..." onChange={(e) => {setTransIn(e.target.value); setTransOut("Translating...")}} />
+                                <div className="flex justify-center"><span className="text-2xl">⬇️</span></div>
+                                <div className="w-full h-1/3 glass p-4 rounded-2xl text-blue-400 font-bold">
+                                    {transIn ? `[Translated]: ${transIn} (Beta)` : "Result will appear here..."}
+                                </div>
+                            </div>
+                        );
+                    case 'game':
+                        return (
+                            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+                                <h2 className="text-2xl font-black mb-4">REFLEX TEST</h2>
+                                <p className="mb-8">Score: {score}</p>
+                                <button 
+                                    className="w-32 h-32 bg-red-600 rounded-full font-black animate-bounce shadow-2xl"
+                                    onClick={() => setScore(s => s + 1)}
+                                >
+                                    HIT ME
+                                </button>
+                                <button onClick={() => setScore(0)} className="mt-10 text-[10px] uppercase opacity-50 tracking-widest">Reset Score</button>
+                            </div>
+                        );
+                    case 'uni':
+                        return (
+                            <div className="p-4 h-full flex flex-col">
+                                <div className="flex-1 glass rounded-2xl mb-4 p-4 text-sm overflow-y-auto">
+                                    <p className="text-blue-500 font-bold mb-2 uppercase text-[10px]">Universal Console</p>
+                                    <p>System Online. Try secret codes...</p>
+                                </div>
+                                <input 
+                                    className="w-full p-4 glass rounded-xl outline-none border border-white/10" 
+                                    placeholder="Enter command..." 
+                                    onKeyPress={(e) => e.key === 'Enter' && (handleUniversalInput(e.target.value), e.target.value = '')}
+                                />
+                            </div>
+                        );
+                    default:
+                        return <div className="p-10 text-center opacity-50 uppercase font-black">Module Under Construction</div>;
+                }
+            };
 
             return (
-                <div className="h-screen overflow-y-auto p-6 md:p-12 animate-in">
-                    <header className="text-center mb-12">
-                        <h1 className="text-5xl font-black tracking-tighter uppercase glow-text">Intelligence OS</h1>
-                        <p className="text-blue-500 text-[10px] font-bold tracking-[0.5em] uppercase mt-2">12 Active Modules</p>
-                    </header>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 max-w-6xl mx-auto">
-                        {APPS.map(app => (
-                            <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-6 rounded-[2.5rem] flex flex-col items-center text-center">
-                                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${app.color} to-transparent flex items-center justify-center text-2xl mb-4 shadow-lg`}>
-                                    {app.icon}
-                                </div>
-                                <h3 className="font-black uppercase text-[11px] tracking-wider">{app.name}</h3>
+                <div className={`h-screen flex flex-col transition-all duration-75 ${vibrate ? 'vibrate' : ''}`}>
+                    {activeApp ? (
+                        <div className="flex-1 flex flex-col">
+                            <header className="p-4 glass flex justify-between items-center">
+                                <button onClick={() => setActiveApp(null)} className="text-blue-500 font-black text-xs uppercase tracking-widest">← Home</button>
+                                <span className="font-black uppercase text-xs tracking-tighter">{activeApp.name}</span>
+                                <div className="w-10"></div>
+                            </header>
+                            <div className="flex-1 overflow-y-auto">{renderModule()}</div>
+                        </div>
+                    ) : (
+                        <div className="p-6 md:p-12 overflow-y-auto hide-scroll">
+                            <header className="text-center mb-12">
+                                <h1 className="text-4xl font-black uppercase tracking-tighter">Intelligence OS</h1>
+                                <p className="text-blue-500 font-bold text-[10px] tracking-[0.5em] mt-2 uppercase">Multitask Console</p>
+                            </header>
+                            
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+                                {[
+                                    {id: 'uni', name: 'Universal AI', icon: '🧠', color: 'bg-blue-600'},
+                                    {id: 'stock', name: 'Stock Pulse', icon: '📈', color: 'bg-emerald-600'},
+                                    {id: 'trans', name: 'Translator', icon: '🌐', color: 'bg-indigo-600'},
+                                    {id: 'game', name: 'Reflex Game', icon: '🎮', color: 'bg-red-600'},
+                                    {id: 'math', name: 'Calculator', icon: '🔢', color: 'bg-orange-600'},
+                                    {id: 'draw', name: 'Sketch Pad', icon: '🎨', color: 'bg-pink-600'},
+                                    {id: 'weather', name: 'Weather', icon: '☁️', color: 'bg-cyan-600'},
+                                    {id: 'clock', name: 'World Time', icon: '⌚', color: 'bg-slate-600'},
+                                    {id: 'med', name: 'Med-AI', icon: '⚕️', color: 'bg-teal-600'},
+                                    {id: 'gym', name: 'Gym Coach', icon: '🏋️', color: 'bg-lime-600'},
+                                    {id: 'code', name: 'Code Lab', icon: '💻', color: 'bg-purple-600'},
+                                    {id: 'chef', name: 'Chef Mode', icon: '🍳', color: 'bg-amber-600'}
+                                ].map(app => (
+                                    <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-6 flex flex-col items-center">
+                                        <div className={`w-12 h-12 ${app.color} rounded-xl mb-4 flex items-center justify-center text-xl shadow-lg`}>{app.icon}</div>
+                                        <p className="font-black uppercase text-[10px] tracking-widest">{app.name}</p>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    )}
+                    <footer className="p-4 text-center opacity-30 pointer-events-none">
+                        <p className="text-[9px] font-black uppercase tracking-[0.6em]">Secure Multi-Module OS</p>
+                    </footer>
                 </div>
             );
         };
