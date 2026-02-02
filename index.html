@@ -3,156 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intelligence OS v3</title>
+    <title>Intelligence OS Master</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: ui-sans-serif, system-ui; overflow: hidden; }
-        .glass { background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 2rem; }
-        .app-card:hover { transform: translateY(-5px); background: rgba(59, 130, 246, 0.1); border-color: #3b82f6; }
+        body { background: #010409; color: white; font-family: ui-sans-serif, system-ui; overflow: hidden; touch-action: manipulation; }
+        .glass { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .app-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 2rem; }
+        .app-card:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
         @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-4px,-4px); } 75% { transform: translate(4px,4px); } }
         .vibrate { animation: shake 0.1s infinite; }
-        .hide-scroll::-webkit-scrollbar { display: none; }
+        canvas { touch-action: none; background: #fff; border-radius: 1.5rem; width: 100%; height: 100%; }
+        .chart-line { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: draw 2s forwards; }
+        @keyframes draw { to { stroke-dashoffset: 0; } }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
 
         const App = () => {
-            const [view, setView] = useState('hub');
             const [activeApp, setActiveApp] = useState(null);
             const [vibrate, setVibrate] = useState(false);
-            
-            // App States
-            const [transIn, setTransIn] = useState('');
-            const [transOut, setTransOut] = useState('');
-            const [score, setScore] = useState(0); // For Mini Game
+            const [score, setScore] = useState(0);
+            const [calcDisplay, setCalcDisplay] = useState('0');
+            const [stockPrices, setStockPrices] = useState([40, 60, 45, 70, 55, 90, 80]);
+            const [isDrawing, setIsDrawing] = useState(false);
+            const canvasRef = useRef(null);
 
-            const speak = (text, p = 1) => {
+            // Universal Triggers & Sound
+            const speak = (t, p = 1) => {
                 window.speechSynthesis.cancel();
-                const m = new SpeechSynthesisUtterance(text);
-                m.pitch = p;
-                window.speechSynthesis.speak(m);
+                const m = new SpeechSynthesisUtterance(t);
+                m.pitch = p; window.speechSynthesis.speak(m);
             };
 
-            const handleUniversalInput = (val) => {
-                const norm = val.replace(/\s/g, '').toLowerCase();
-                if (norm === '67') {
-                    setVibrate(true); speak("6 7", 1.2);
-                    setTimeout(() => setVibrate(false), 800);
-                } else if (norm === '10+9=21') {
-                    setVibrate(true); speak("You dumb", 0.5);
-                    setTimeout(() => setVibrate(false), 1000);
+            const triggerCheck = (val) => {
+                const n = val.replace(/\s/g, '').toLowerCase();
+                if (n === '67') { setVibrate(true); speak("6 7", 1.2); setTimeout(()=>setVibrate(false), 800); }
+                if (n === '10+9=21') { setVibrate(true); speak("You dumb", 0.5); setTimeout(()=>setVibrate(false), 1000); }
+            };
+
+            // Live Stock Logic (Generates moving graph points)
+            useEffect(() => {
+                if(activeApp?.id === 'stock') {
+                    const interval = setInterval(() => {
+                        setStockPrices(prev => [...prev.slice(1), Math.floor(Math.random() * 80) + 20]);
+                    }, 2000);
+                    return () => clearInterval(interval);
                 }
+            }, [activeApp]);
+
+            // Drawing Engine
+            const startDraw = (e) => {
+                setIsDrawing(true);
+                const ctx = canvasRef.current.getContext('2d');
+                ctx.beginPath();
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#000';
+            };
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const ctx = canvasRef.current.getContext('2d');
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                ctx.lineTo(x, y); ctx.stroke();
             };
 
-            const renderModule = () => {
+            const renderApp = () => {
                 switch(activeApp?.id) {
-                    case 'stock':
-                        return (
-                            <div className="p-6 space-y-4 animate-in">
-                                <div className="glass p-6 rounded-3xl text-center">
-                                    <p className="text-amber-500 font-bold text-[10px] uppercase tracking-widest mb-2">Gold Spot</p>
-                                    <h2 className="text-4xl font-black">$2,342.10</h2>
-                                </div>
-                                <div className="glass p-6 rounded-3xl text-center">
-                                    <p className="text-orange-500 font-bold text-[10px] uppercase tracking-widest mb-2">Bitcoin</p>
-                                    <h2 className="text-4xl font-black">$98,412.00</h2>
+                    case 'stock': return (
+                        <div className="p-6 h-full flex flex-col">
+                            <div className="glass p-6 rounded-3xl mb-6 flex justify-between items-end">
+                                <div><p className="text-emerald-500 font-bold text-xs">LIVE XAU/USD</p><h2 className="text-4xl font-black">${2300 + stockPrices[6]}</h2></div>
+                                <div className={stockPrices[6] > stockPrices[5] ? 'text-emerald-500' : 'text-red-500'}>
+                                    {stockPrices[6] > stockPrices[5] ? '▲ UP' : '▼ DOWN'}
                                 </div>
                             </div>
-                        );
-                    case 'trans':
-                        return (
-                            <div className="p-4 flex flex-col gap-4 h-full">
-                                <textarea className="w-full h-1/3 glass p-4 rounded-2xl outline-none resize-none" placeholder="Enter text..." onChange={(e) => {setTransIn(e.target.value); setTransOut("Translating...")}} />
-                                <div className="flex justify-center"><span className="text-2xl">⬇️</span></div>
-                                <div className="w-full h-1/3 glass p-4 rounded-2xl text-blue-400 font-bold">
-                                    {transIn ? `[Translated]: ${transIn} (Beta)` : "Result will appear here..."}
-                                </div>
+                            <div className="flex-1 glass rounded-3xl p-4 overflow-hidden relative">
+                                <svg viewBox="0 0 140 100" className="w-full h-full">
+                                    <polyline fill="none" stroke="#10b981" strokeWidth="2" points={stockPrices.map((p, i) => `${i * 23},${100 - p}`).join(' ')} className="transition-all duration-1000" />
+                                    {stockPrices.map((p, i) => (
+                                        <circle key={i} cx={i * 23} cy={100 - p} r="2" fill="#10b981" />
+                                    ))}
+                                </svg>
                             </div>
-                        );
-                    case 'game':
-                        return (
-                            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                                <h2 className="text-2xl font-black mb-4">REFLEX TEST</h2>
-                                <p className="mb-8">Score: {score}</p>
-                                <button 
-                                    className="w-32 h-32 bg-red-600 rounded-full font-black animate-bounce shadow-2xl"
-                                    onClick={() => setScore(s => s + 1)}
-                                >
-                                    HIT ME
-                                </button>
-                                <button onClick={() => setScore(0)} className="mt-10 text-[10px] uppercase opacity-50 tracking-widest">Reset Score</button>
+                        </div>
+                    );
+                    case 'math': return (
+                        <div className="p-4 grid grid-cols-4 gap-3 h-full">
+                            <div className="col-span-4 glass p-8 rounded-2xl text-right text-4xl font-black mb-4 truncate">{calcDisplay}</div>
+                            {['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(b => (
+                                <button key={b} onClick={() => {
+                                    if(b === '=') { try{ setCalcDisplay(eval(calcDisplay).toString()) } catch{ setCalcDisplay('Error') } }
+                                    else { setCalcDisplay(calcDisplay === '0' ? b : calcDisplay + b) }
+                                }} className="glass p-6 rounded-2xl text-xl font-bold active:bg-blue-600 transition-colors">{b}</button>
+                            ))}
+                            <button onClick={()=>setCalcDisplay('0')} className="col-span-4 bg-red-600/20 border border-red-600/50 p-4 rounded-xl font-black mt-2 text-red-500">AC / RESET</button>
+                        </div>
+                    );
+                    case 'draw': return (
+                        <div className="p-4 h-full flex flex-col">
+                            <div className="flex-1 rounded-3xl overflow-hidden border-4 border-white/10">
+                                <canvas ref={canvasRef} onMouseDown={startDraw} onMouseMove={draw} onMouseUp={()=>setIsDrawing(false)} onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={()=>setIsDrawing(false)} />
                             </div>
-                        );
-                    case 'uni':
-                        return (
-                            <div className="p-4 h-full flex flex-col">
-                                <div className="flex-1 glass rounded-2xl mb-4 p-4 text-sm overflow-y-auto">
-                                    <p className="text-blue-500 font-bold mb-2 uppercase text-[10px]">Universal Console</p>
-                                    <p>System Online. Try secret codes...</p>
-                                </div>
-                                <input 
-                                    className="w-full p-4 glass rounded-xl outline-none border border-white/10" 
-                                    placeholder="Enter command..." 
-                                    onKeyPress={(e) => e.key === 'Enter' && (handleUniversalInput(e.target.value), e.target.value = '')}
-                                />
+                            <button onClick={()=>{const ctx=canvasRef.current.getContext('2d'); ctx.clearRect(0,0,1000,1000)}} className="mt-4 bg-white text-black p-4 rounded-2xl font-black uppercase tracking-widest">Clear Canvas</button>
+                        </div>
+                    );
+                    case 'uni': return (
+                        <div className="p-4 h-full flex flex-col">
+                            <div className="flex-1 glass rounded-3xl p-6 overflow-y-auto mb-4 font-mono text-sm leading-relaxed">
+                                <span className="text-blue-500 font-black tracking-widest">[SYSTEM ONLINE]</span><br/>
+                                <span className="opacity-50 mt-2 block">Awaiting Trigger... (Try 67 or 10+9=21)</span>
                             </div>
-                        );
-                    default:
-                        return <div className="p-10 text-center opacity-50 uppercase font-black">Module Under Construction</div>;
+                            <input className="w-full p-5 glass rounded-2xl outline-none border border-white/10 focus:border-blue-500" placeholder="Execute code..." onKeyPress={(e) => e.key === 'Enter' && (triggerCheck(e.target.value), e.target.value='')} />
+                        </div>
+                    );
+                    case 'game': return (
+                        <div className="flex flex-col items-center justify-center h-full">
+                            <div className="text-[10rem] font-black opacity-10 absolute pointer-events-none">{score}</div>
+                            <button onPointerDown={()=>setScore(s=>s+1)} className="w-48 h-48 bg-blue-600 rounded-full font-black text-2xl shadow-[0_0_50px_rgba(59,130,246,0.5)] active:scale-90 transition-all z-10">TAP</button>
+                            <p className="mt-8 font-black uppercase tracking-[0.5em] text-xs">Reflex Sync Score</p>
+                        </div>
+                    );
+                    default: return <div className="h-full flex items-center justify-center font-black uppercase opacity-20 tracking-[1em] text-center p-10">Module Offline: Check API</div>;
                 }
             };
 
             return (
                 <div className={`h-screen flex flex-col transition-all duration-75 ${vibrate ? 'vibrate' : ''}`}>
                     {activeApp ? (
-                        <div className="flex-1 flex flex-col">
-                            <header className="p-4 glass flex justify-between items-center">
-                                <button onClick={() => setActiveApp(null)} className="text-blue-500 font-black text-xs uppercase tracking-widest">← Home</button>
-                                <span className="font-black uppercase text-xs tracking-tighter">{activeApp.name}</span>
+                        <div className="flex-1 flex flex-col h-full bg-slate-950">
+                            <header className="p-5 glass flex justify-between items-center z-50">
+                                <button onClick={() => setActiveApp(null)} className="bg-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">Back</button>
+                                <span className="font-black uppercase text-xs tracking-widest">{activeApp.name}</span>
                                 <div className="w-10"></div>
                             </header>
-                            <div className="flex-1 overflow-y-auto">{renderModule()}</div>
+                            <div className="flex-1 overflow-hidden">{renderApp()}</div>
                         </div>
                     ) : (
-                        <div className="p-6 md:p-12 overflow-y-auto hide-scroll">
-                            <header className="text-center mb-12">
-                                <h1 className="text-4xl font-black uppercase tracking-tighter">Intelligence OS</h1>
-                                <p className="text-blue-500 font-bold text-[10px] tracking-[0.5em] mt-2 uppercase">Multitask Console</p>
+                        <div className="p-6 md:p-12 h-screen overflow-y-auto">
+                            <header className="text-center mb-16">
+                                <h1 className="text-6xl font-black uppercase tracking-tighter mb-2 italic">OS HUB</h1>
+                                <p className="text-blue-500 font-bold text-[10px] tracking-[0.8em] uppercase opacity-80">12 Integrated Modules</p>
                             </header>
-                            
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
                                 {[
-                                    {id: 'uni', name: 'Universal AI', icon: '🧠', color: 'bg-blue-600'},
-                                    {id: 'stock', name: 'Stock Pulse', icon: '📈', color: 'bg-emerald-600'},
-                                    {id: 'trans', name: 'Translator', icon: '🌐', color: 'bg-indigo-600'},
-                                    {id: 'game', name: 'Reflex Game', icon: '🎮', color: 'bg-red-600'},
-                                    {id: 'math', name: 'Calculator', icon: '🔢', color: 'bg-orange-600'},
-                                    {id: 'draw', name: 'Sketch Pad', icon: '🎨', color: 'bg-pink-600'},
-                                    {id: 'weather', name: 'Weather', icon: '☁️', color: 'bg-cyan-600'},
-                                    {id: 'clock', name: 'World Time', icon: '⌚', color: 'bg-slate-600'},
-                                    {id: 'med', name: 'Med-AI', icon: '⚕️', color: 'bg-teal-600'},
-                                    {id: 'gym', name: 'Gym Coach', icon: '🏋️', color: 'bg-lime-600'},
-                                    {id: 'code', name: 'Code Lab', icon: '💻', color: 'bg-purple-600'},
-                                    {id: 'chef', name: 'Chef Mode', icon: '🍳', color: 'bg-amber-600'}
+                                    {id: 'uni', name: 'Universal AI', icon: '🧠'},
+                                    {id: 'stock', name: 'Stock Pulse', icon: '📈'},
+                                    {id: 'math', name: 'Calc Pro', icon: '🔢'},
+                                    {id: 'draw', name: 'Sketch', icon: '🎨'},
+                                    {id: 'game', name: 'Reflex', icon: '🎮'},
+                                    {id: 'med', name: 'Med-AI', icon: '⚕️'},
+                                    {id: 'gym', name: 'Coach', icon: '🏋️'},
+                                    {id: 'weather', name: 'Global', icon: '☁️'},
+                                    {id: 'clock', name: 'Sys Time', icon: '⌚'},
+                                    {id: 'code', name: 'Terminal', icon: '💻'},
+                                    {id: 'trans', name: 'Sync', icon: '🌐'},
+                                    {id: 'chef', name: 'Recipe', icon: '🍳'}
                                 ].map(app => (
-                                    <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-6 flex flex-col items-center">
-                                        <div className={`w-12 h-12 ${app.color} rounded-xl mb-4 flex items-center justify-center text-xl shadow-lg`}>{app.icon}</div>
+                                    <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-8 flex flex-col items-center">
+                                        <span className="text-3xl mb-4">{app.icon}</span>
                                         <p className="font-black uppercase text-[10px] tracking-widest">{app.name}</p>
                                     </div>
                                 ))}
                             </div>
                         </div>
                     )}
-                    <footer className="p-4 text-center opacity-30 pointer-events-none">
-                        <p className="text-[9px] font-black uppercase tracking-[0.6em]">Secure Multi-Module OS</p>
-                    </footer>
                 </div>
             );
         };
