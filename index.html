@@ -10,14 +10,12 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
         body { background: #010409; color: white; font-family: ui-sans-serif, system-ui; overflow: hidden; touch-action: manipulation; }
-        .glass { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass { background: rgba(13, 17, 23, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .app-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 2rem; }
         .app-card:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
         @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-4px,-4px); } 75% { transform: translate(4px,4px); } }
         .vibrate { animation: shake 0.1s infinite; }
-        canvas { touch-action: none; background: #fff; border-radius: 1.5rem; width: 100%; height: 100%; }
-        .chart-line { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: draw 2s forwards; }
-        @keyframes draw { to { stroke-dashoffset: 0; } }
+        canvas { touch-action: none; background: #ffffff; border-radius: 1.5rem; width: 100%; height: 100%; cursor: crosshair; }
     </style>
 </head>
 <body>
@@ -30,11 +28,9 @@
             const [vibrate, setVibrate] = useState(false);
             const [score, setScore] = useState(0);
             const [calcDisplay, setCalcDisplay] = useState('0');
-            const [stockPrices, setStockPrices] = useState([40, 60, 45, 70, 55, 90, 80]);
-            const [isDrawing, setIsDrawing] = useState(false);
-            const canvasRef = useRef(null);
-
-            // Universal Triggers & Sound
+            const [stockPrices, setStockPrices] = useState([30, 50, 40, 80, 60, 90, 75]);
+            
+            // Universal Triggers
             const speak = (t, p = 1) => {
                 window.speechSynthesis.cancel();
                 const m = new SpeechSynthesisUtterance(t);
@@ -47,91 +43,101 @@
                 if (n === '10+9=21') { setVibrate(true); speak("You dumb", 0.5); setTimeout(()=>setVibrate(false), 1000); }
             };
 
-            // Live Stock Logic (Generates moving graph points)
+            // Stock Graph Loop
             useEffect(() => {
-                if(activeApp?.id === 'stock') {
-                    const interval = setInterval(() => {
-                        setStockPrices(prev => [...prev.slice(1), Math.floor(Math.random() * 80) + 20]);
-                    }, 2000);
-                    return () => clearInterval(interval);
-                }
-            }, [activeApp]);
+                const interval = setInterval(() => {
+                    setStockPrices(prev => [...prev.slice(1), Math.floor(Math.random() * 70) + 20]);
+                }, 1500);
+                return () => clearInterval(interval);
+            }, []);
 
-            // Drawing Engine
-            const startDraw = (e) => {
-                setIsDrawing(true);
+            // Fixed Sketch Pad Engine
+            const canvasRef = useRef(null);
+            const [drawing, setDrawing] = useState(false);
+
+            const getPos = (e) => {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            const startDrawing = (e) => {
+                setDrawing(true);
                 const ctx = canvasRef.current.getContext('2d');
+                const pos = getPos(e);
                 ctx.beginPath();
-                ctx.lineWidth = 3;
+                ctx.moveTo(pos.x, pos.y);
+                ctx.lineWidth = 4;
                 ctx.lineCap = 'round';
                 ctx.strokeStyle = '#000';
             };
-            const draw = (e) => {
-                if (!isDrawing) return;
+
+            const drawMove = (e) => {
+                if (!drawing) return;
                 const ctx = canvasRef.current.getContext('2d');
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                const y = (e.clientY || e.touches[0].clientY) - rect.top;
-                ctx.lineTo(x, y); ctx.stroke();
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
             };
 
             const renderApp = () => {
                 switch(activeApp?.id) {
                     case 'stock': return (
                         <div className="p-6 h-full flex flex-col">
-                            <div className="glass p-6 rounded-3xl mb-6 flex justify-between items-end">
-                                <div><p className="text-emerald-500 font-bold text-xs">LIVE XAU/USD</p><h2 className="text-4xl font-black">${2300 + stockPrices[6]}</h2></div>
-                                <div className={stockPrices[6] > stockPrices[5] ? 'text-emerald-500' : 'text-red-500'}>
-                                    {stockPrices[6] > stockPrices[5] ? '▲ UP' : '▼ DOWN'}
-                                </div>
+                            <div className="glass p-6 rounded-3xl mb-4 flex justify-between items-center">
+                                <div><p className="text-emerald-400 font-bold text-[10px] tracking-widest uppercase">Live Pulse</p><h2 className="text-3xl font-black">${2400 + stockPrices[6]}</h2></div>
+                                <div className="text-emerald-400 animate-pulse font-bold text-xs tracking-tighter">● LIVE</div>
                             </div>
-                            <div className="flex-1 glass rounded-3xl p-4 overflow-hidden relative">
-                                <svg viewBox="0 0 140 100" className="w-full h-full">
-                                    <polyline fill="none" stroke="#10b981" strokeWidth="2" points={stockPrices.map((p, i) => `${i * 23},${100 - p}`).join(' ')} className="transition-all duration-1000" />
-                                    {stockPrices.map((p, i) => (
-                                        <circle key={i} cx={i * 23} cy={100 - p} r="2" fill="#10b981" />
-                                    ))}
+                            <div className="flex-1 glass rounded-3xl p-6 relative">
+                                <svg viewBox="0 0 140 100" className="w-full h-full preserve-3d">
+                                    <polyline fill="none" stroke="#10b981" strokeWidth="3" points={stockPrices.map((p, i) => `${i * 23.3},${100 - p}`).join(' ')} className="transition-all duration-700" strokeLinejoin="round" />
+                                    <circle cx="140" cy={100 - stockPrices[6]} r="3" fill="#10b981" className="animate-ping" />
                                 </svg>
                             </div>
                         </div>
                     );
                     case 'math': return (
                         <div className="p-4 grid grid-cols-4 gap-3 h-full">
-                            <div className="col-span-4 glass p-8 rounded-2xl text-right text-4xl font-black mb-4 truncate">{calcDisplay}</div>
+                            <div className="col-span-4 glass p-8 rounded-2xl text-right text-4xl font-black mb-2 overflow-hidden">{calcDisplay}</div>
                             {['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(b => (
-                                <button key={b} onClick={() => {
-                                    if(b === '=') { try{ setCalcDisplay(eval(calcDisplay).toString()) } catch{ setCalcDisplay('Error') } }
-                                    else { setCalcDisplay(calcDisplay === '0' ? b : calcDisplay + b) }
-                                }} className="glass p-6 rounded-2xl text-xl font-bold active:bg-blue-600 transition-colors">{b}</button>
+                                <button key={b} onClick={() => b === '=' ? setCalcDisplay(eval(calcDisplay).toString()) : setCalcDisplay(calcDisplay === '0' ? b : calcDisplay + b)} className="glass p-6 rounded-2xl text-xl font-bold active:bg-blue-600">{b}</button>
                             ))}
-                            <button onClick={()=>setCalcDisplay('0')} className="col-span-4 bg-red-600/20 border border-red-600/50 p-4 rounded-xl font-black mt-2 text-red-500">AC / RESET</button>
+                            <button onClick={()=>setCalcDisplay('0')} className="col-span-4 bg-red-600/30 p-4 rounded-xl font-black uppercase text-red-500">Reset</button>
                         </div>
                     );
                     case 'draw': return (
                         <div className="p-4 h-full flex flex-col">
-                            <div className="flex-1 rounded-3xl overflow-hidden border-4 border-white/10">
-                                <canvas ref={canvasRef} onMouseDown={startDraw} onMouseMove={draw} onMouseUp={()=>setIsDrawing(false)} onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={()=>setIsDrawing(false)} />
+                            <div className="flex-1 rounded-3xl overflow-hidden border-2 border-white/20">
+                                <canvas ref={canvasRef} 
+                                    onMouseDown={startDrawing} onMouseMove={drawMove} onMouseUp={()=>setDrawing(false)}
+                                    onTouchStart={startDrawing} onTouchMove={drawMove} onTouchEnd={()=>setDrawing(false)}
+                                />
                             </div>
-                            <button onClick={()=>{const ctx=canvasRef.current.getContext('2d'); ctx.clearRect(0,0,1000,1000)}} className="mt-4 bg-white text-black p-4 rounded-2xl font-black uppercase tracking-widest">Clear Canvas</button>
+                            <button onClick={()=>{const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="mt-4 bg-blue-600 p-4 rounded-2xl font-black uppercase tracking-widest">Clear Pad</button>
+                        </div>
+                    );
+                    case 'game': return (
+                        <div className="flex flex-col items-center h-full p-10">
+                            <div className="mb-12 text-center">
+                                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-50 mb-2">Sync Score</p>
+                                <h2 className="text-7xl font-black text-blue-500 tabular-nums">{score}</h2>
+                            </div>
+                            <button onPointerDown={()=>setScore(s=>s+1)} className="w-52 h-52 bg-white rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(255,255,255,0.3)] active:scale-90 transition-all">
+                                <span className="text-black font-black text-xl uppercase">Tap Me</span>
+                            </button>
+                            <button onClick={()=>setScore(0)} className="mt-auto opacity-30 uppercase font-black text-[10px] tracking-widest">Reset Record</button>
                         </div>
                     );
                     case 'uni': return (
                         <div className="p-4 h-full flex flex-col">
-                            <div className="flex-1 glass rounded-3xl p-6 overflow-y-auto mb-4 font-mono text-sm leading-relaxed">
-                                <span className="text-blue-500 font-black tracking-widest">[SYSTEM ONLINE]</span><br/>
-                                <span className="opacity-50 mt-2 block">Awaiting Trigger... (Try 67 or 10+9=21)</span>
+                            <div className="flex-1 glass rounded-3xl p-6 mb-4 font-mono text-xs opacity-80">
+                                [TERMINAL ACTIVE]<br/>Try Commands:<br/>> 67<br/>> 10+9=21
                             </div>
-                            <input className="w-full p-5 glass rounded-2xl outline-none border border-white/10 focus:border-blue-500" placeholder="Execute code..." onKeyPress={(e) => e.key === 'Enter' && (triggerCheck(e.target.value), e.target.value='')} />
+                            <input className="w-full p-5 glass rounded-2xl outline-none" placeholder="Enter Trigger..." onKeyPress={(e) => e.key === 'Enter' && (triggerCheck(e.target.value), e.target.value='')} />
                         </div>
                     );
-                    case 'game': return (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <div className="text-[10rem] font-black opacity-10 absolute pointer-events-none">{score}</div>
-                            <button onPointerDown={()=>setScore(s=>s+1)} className="w-48 h-48 bg-blue-600 rounded-full font-black text-2xl shadow-[0_0_50px_rgba(59,130,246,0.5)] active:scale-90 transition-all z-10">TAP</button>
-                            <p className="mt-8 font-black uppercase tracking-[0.5em] text-xs">Reflex Sync Score</p>
-                        </div>
-                    );
-                    default: return <div className="h-full flex items-center justify-center font-black uppercase opacity-20 tracking-[1em] text-center p-10">Module Offline: Check API</div>;
+                    default: return <div className="h-full flex items-center justify-center opacity-30 font-black uppercase tracking-[0.5em]">Module Active</div>;
                 }
             };
 
@@ -139,35 +145,213 @@
                 <div className={`h-screen flex flex-col transition-all duration-75 ${vibrate ? 'vibrate' : ''}`}>
                     {activeApp ? (
                         <div className="flex-1 flex flex-col h-full bg-slate-950">
-                            <header className="p-5 glass flex justify-between items-center z-50">
-                                <button onClick={() => setActiveApp(null)} className="bg-white/10 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest">Back</button>
-                                <span className="font-black uppercase text-xs tracking-widest">{activeApp.name}</span>
+                            <header className="p-5 glass flex justify-between items-center">
+                                <button onClick={() => setActiveApp(null)} className="text-[10px] font-black uppercase tracking-widest bg-white/10 px-4 py-2 rounded-full">← Home</button>
+                                <span className="font-black uppercase text-[10px] tracking-widest">{activeApp.name}</span>
                                 <div className="w-10"></div>
                             </header>
                             <div className="flex-1 overflow-hidden">{renderApp()}</div>
                         </div>
                     ) : (
-                        <div className="p-6 md:p-12 h-screen overflow-y-auto">
-                            <header className="text-center mb-16">
-                                <h1 className="text-6xl font-black uppercase tracking-tighter mb-2 italic">OS HUB</h1>
-                                <p className="text-blue-500 font-bold text-[10px] tracking-[0.8em] uppercase opacity-80">12 Integrated Modules</p>
+                        <div className="p-8 h-screen overflow-y-auto">
+                            <header className="text-center mb-16 pt-10">
+                                <h1 className="text-5xl font-black uppercase tracking-tighter italic">Intelligence OS</h1>
+                                <p className="text-blue-500 text-[10px] font-black tracking-[0.8em] uppercase mt-2">v.Master.2026</p>
                             </header>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
                                 {[
-                                    {id: 'uni', name: 'Universal AI', icon: '🧠'},
-                                    {id: 'stock', name: 'Stock Pulse', icon: '📈'},
-                                    {id: 'math', name: 'Calc Pro', icon: '🔢'},
+                                    {id: 'uni', name: 'Universal', icon: '🧠'},
+                                    {id: 'stock', name: 'Pulse', icon: '📈'},
                                     {id: 'draw', name: 'Sketch', icon: '🎨'},
                                     {id: 'game', name: 'Reflex', icon: '🎮'},
-                                    {id: 'med', name: 'Med-AI', icon: '⚕️'},
-                                    {id: 'gym', name: 'Coach', icon: '🏋️'},
-                                    {id: 'weather', name: 'Global', icon: '☁️'},
-                                    {id: 'clock', name: 'Sys Time', icon: '⌚'},
-                                    {id: 'code', name: 'Terminal', icon: '💻'},
-                                    {id: 'trans', name: 'Sync', icon: '🌐'},
-                                    {id: 'chef', name: 'Recipe', icon: '🍳'}
+                                    {id: 'math', name: 'Calc', icon: '🔢'},
+                                    {id: 'clock', name: 'Time', icon: '⌚'}
                                 ].map(app => (
-                                    <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-8 flex flex-col items-center">
+                                    <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-10 flex flex-col items-center">
+                                        <span className="text-3xl mb-4">{app.icon}</span>
+                                        <p className="font-black uppercase text-[10px] tracking-widest">{app.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Intelligence OS Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background: #010409; color: white; font-family: ui-sans-serif, system-ui; overflow: hidden; touch-action: manipulation; }
+        .glass { background: rgba(13, 17, 23, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .app-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 2rem; }
+        .app-card:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-4px,-4px); } 75% { transform: translate(4px,4px); } }
+        .vibrate { animation: shake 0.1s infinite; }
+        canvas { touch-action: none; background: #ffffff; border-radius: 1.5rem; width: 100%; height: 100%; cursor: crosshair; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const App = () => {
+            const [activeApp, setActiveApp] = useState(null);
+            const [vibrate, setVibrate] = useState(false);
+            const [score, setScore] = useState(0);
+            const [calcDisplay, setCalcDisplay] = useState('0');
+            const [stockPrices, setStockPrices] = useState([30, 50, 40, 80, 60, 90, 75]);
+            
+            // Universal Triggers
+            const speak = (t, p = 1) => {
+                window.speechSynthesis.cancel();
+                const m = new SpeechSynthesisUtterance(t);
+                m.pitch = p; window.speechSynthesis.speak(m);
+            };
+
+            const triggerCheck = (val) => {
+                const n = val.replace(/\s/g, '').toLowerCase();
+                if (n === '67') { setVibrate(true); speak("6 7", 1.2); setTimeout(()=>setVibrate(false), 800); }
+                if (n === '10+9=21') { setVibrate(true); speak("You dumb", 0.5); setTimeout(()=>setVibrate(false), 1000); }
+            };
+
+            // Stock Graph Loop
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setStockPrices(prev => [...prev.slice(1), Math.floor(Math.random() * 70) + 20]);
+                }, 1500);
+                return () => clearInterval(interval);
+            }, []);
+
+            // Fixed Sketch Pad Engine
+            const canvasRef = useRef(null);
+            const [drawing, setDrawing] = useState(false);
+
+            const getPos = (e) => {
+                const rect = canvasRef.current.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            const startDrawing = (e) => {
+                setDrawing(true);
+                const ctx = canvasRef.current.getContext('2d');
+                const pos = getPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = '#000';
+            };
+
+            const drawMove = (e) => {
+                if (!drawing) return;
+                const ctx = canvasRef.current.getContext('2d');
+                const pos = getPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            };
+
+            const renderApp = () => {
+                switch(activeApp?.id) {
+                    case 'stock': return (
+                        <div className="p-6 h-full flex flex-col">
+                            <div className="glass p-6 rounded-3xl mb-4 flex justify-between items-center">
+                                <div><p className="text-emerald-400 font-bold text-[10px] tracking-widest uppercase">Live Pulse</p><h2 className="text-3xl font-black">${2400 + stockPrices[6]}</h2></div>
+                                <div className="text-emerald-400 animate-pulse font-bold text-xs tracking-tighter">● LIVE</div>
+                            </div>
+                            <div className="flex-1 glass rounded-3xl p-6 relative">
+                                <svg viewBox="0 0 140 100" className="w-full h-full preserve-3d">
+                                    <polyline fill="none" stroke="#10b981" strokeWidth="3" points={stockPrices.map((p, i) => `${i * 23.3},${100 - p}`).join(' ')} className="transition-all duration-700" strokeLinejoin="round" />
+                                    <circle cx="140" cy={100 - stockPrices[6]} r="3" fill="#10b981" className="animate-ping" />
+                                </svg>
+                            </div>
+                        </div>
+                    );
+                    case 'math': return (
+                        <div className="p-4 grid grid-cols-4 gap-3 h-full">
+                            <div className="col-span-4 glass p-8 rounded-2xl text-right text-4xl font-black mb-2 overflow-hidden">{calcDisplay}</div>
+                            {['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(b => (
+                                <button key={b} onClick={() => b === '=' ? setCalcDisplay(eval(calcDisplay).toString()) : setCalcDisplay(calcDisplay === '0' ? b : calcDisplay + b)} className="glass p-6 rounded-2xl text-xl font-bold active:bg-blue-600">{b}</button>
+                            ))}
+                            <button onClick={()=>setCalcDisplay('0')} className="col-span-4 bg-red-600/30 p-4 rounded-xl font-black uppercase text-red-500">Reset</button>
+                        </div>
+                    );
+                    case 'draw': return (
+                        <div className="p-4 h-full flex flex-col">
+                            <div className="flex-1 rounded-3xl overflow-hidden border-2 border-white/20">
+                                <canvas ref={canvasRef} 
+                                    onMouseDown={startDrawing} onMouseMove={drawMove} onMouseUp={()=>setDrawing(false)}
+                                    onTouchStart={startDrawing} onTouchMove={drawMove} onTouchEnd={()=>setDrawing(false)}
+                                />
+                            </div>
+                            <button onClick={()=>{const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="mt-4 bg-blue-600 p-4 rounded-2xl font-black uppercase tracking-widest">Clear Pad</button>
+                        </div>
+                    );
+                    case 'game': return (
+                        <div className="flex flex-col items-center h-full p-10">
+                            <div className="mb-12 text-center">
+                                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-50 mb-2">Sync Score</p>
+                                <h2 className="text-7xl font-black text-blue-500 tabular-nums">{score}</h2>
+                            </div>
+                            <button onPointerDown={()=>setScore(s=>s+1)} className="w-52 h-52 bg-white rounded-full flex items-center justify-center shadow-[0_0_60px_rgba(255,255,255,0.3)] active:scale-90 transition-all">
+                                <span className="text-black font-black text-xl uppercase">Tap Me</span>
+                            </button>
+                            <button onClick={()=>setScore(0)} className="mt-auto opacity-30 uppercase font-black text-[10px] tracking-widest">Reset Record</button>
+                        </div>
+                    );
+                    case 'uni': return (
+                        <div className="p-4 h-full flex flex-col">
+                            <div className="flex-1 glass rounded-3xl p-6 mb-4 font-mono text-xs opacity-80">
+                                [TERMINAL ACTIVE]<br/>Try Commands:<br/>> 67<br/>> 10+9=21
+                            </div>
+                            <input className="w-full p-5 glass rounded-2xl outline-none" placeholder="Enter Trigger..." onKeyPress={(e) => e.key === 'Enter' && (triggerCheck(e.target.value), e.target.value='')} />
+                        </div>
+                    );
+                    default: return <div className="h-full flex items-center justify-center opacity-30 font-black uppercase tracking-[0.5em]">Module Active</div>;
+                }
+            };
+
+            return (
+                <div className={`h-screen flex flex-col transition-all duration-75 ${vibrate ? 'vibrate' : ''}`}>
+                    {activeApp ? (
+                        <div className="flex-1 flex flex-col h-full bg-slate-950">
+                            <header className="p-5 glass flex justify-between items-center">
+                                <button onClick={() => setActiveApp(null)} className="text-[10px] font-black uppercase tracking-widest bg-white/10 px-4 py-2 rounded-full">← Home</button>
+                                <span className="font-black uppercase text-[10px] tracking-widest">{activeApp.name}</span>
+                                <div className="w-10"></div>
+                            </header>
+                            <div className="flex-1 overflow-hidden">{renderApp()}</div>
+                        </div>
+                    ) : (
+                        <div className="p-8 h-screen overflow-y-auto">
+                            <header className="text-center mb-16 pt-10">
+                                <h1 className="text-5xl font-black uppercase tracking-tighter italic">Intelligence OS</h1>
+                                <p className="text-blue-500 text-[10px] font-black tracking-[0.8em] uppercase mt-2">v.Master.2026</p>
+                            </header>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+                                {[
+                                    {id: 'uni', name: 'Universal', icon: '🧠'},
+                                    {id: 'stock', name: 'Pulse', icon: '📈'},
+                                    {id: 'draw', name: 'Sketch', icon: '🎨'},
+                                    {id: 'game', name: 'Reflex', icon: '🎮'},
+                                    {id: 'math', name: 'Calc', icon: '🔢'},
+                                    {id: 'clock', name: 'Time', icon: '⌚'}
+                                ].map(app => (
+                                    <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-10 flex flex-col items-center">
                                         <span className="text-3xl mb-4">{app.icon}</span>
                                         <p className="font-black uppercase text-[10px] tracking-widest">{app.name}</p>
                                     </div>
