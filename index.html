@@ -9,13 +9,13 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background: #010409; color: white; font-family: ui-sans-serif, system-ui; overflow: hidden; touch-action: manipulation; }
-        .glass { background: rgba(13, 17, 23, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 2rem; border: 1px solid rgba(255,255,255,0.05); }
-        .app-card:hover { border-color: #3b82f6; background: rgba(59, 130, 246, 0.1); }
+        body { background: #010409; color: white; font-family: system-ui; overflow: hidden; }
+        .glass { background: rgba(13, 17, 23, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .app-card { transition: 0.2s; cursor: pointer; border-radius: 1.5rem; }
+        .app-card:active { transform: scale(0.95); }
         @keyframes shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(-4px,-4px); } 75% { transform: translate(4px,4px); } }
         .vibrate { animation: shake 0.1s infinite; }
-        canvas { touch-action: none; background: #ffffff; border-radius: 1.5rem; width: 100%; height: 100%; cursor: crosshair; }
+        canvas { touch-action: none; background: #fff; border-radius: 1rem; width: 100%; height: 250px; }
         ::-webkit-scrollbar { display: none; }
     </style>
 </head>
@@ -30,160 +30,126 @@
             const [apiKey, setApiKey] = useState('');
             const [vibrate, setVibrate] = useState(false);
             const [score, setScore] = useState(0);
-            const [calcDisplay, setCalcDisplay] = useState('0');
-            const [stockPrices, setStockPrices] = useState([40, 60, 45, 80, 55, 90, 70]);
-            const [chatMessages, setChatMessages] = useState([]);
-            const [userInput, setUserInput] = useState('');
+            const [prices, setPrices] = useState([40, 60, 45, 80, 55, 90, 70]);
+            const [msgs, setMsgs] = useState([]);
+            const [input, setInput] = useState('');
+            const [calc, setCalc] = useState('0');
             const [loading, setLoading] = useState(false);
-            const canvasRef = useRef(null);
+            const cvRef = useRef(null);
             const [drawing, setDrawing] = useState(false);
 
-            // Universal Triggers
-            const triggerCheck = (val) => {
-                const n = val.replace(/\s/g, '').toLowerCase();
-                if (n === '67') { setVibrate(true); const m = new SpeechSynthesisUtterance("6 7"); m.pitch=1.2; window.speechSynthesis.speak(m); setTimeout(()=>setVibrate(false), 800); }
+            // Universal AI Logic & Triggers
+            const trigger = (v) => {
+                const n = v.replace(/\s/g, '').toLowerCase();
+                if (n === '67') { setVibrate(true); const m = new SpeechSynthesisUtterance("6 7"); window.speechSynthesis.speak(m); setTimeout(()=>setVibrate(false), 800); }
                 if (n === '10+9=21') { setVibrate(true); const m = new SpeechSynthesisUtterance("You dumb"); m.pitch=0.5; window.speechSynthesis.speak(m); setTimeout(()=>setVibrate(false), 1000); }
             };
 
-            // Real AI Chat Logic
-            const handleAIChat = async () => {
-                if(!userInput.trim()) return;
-                const msg = userInput;
-                triggerCheck(msg);
-                setChatMessages(prev => [...prev, {role: 'user', content: msg}]);
-                setUserInput('');
-                setLoading(true);
-
+            const handleChat = async () => {
+                if(!input.trim()) return;
+                const m = input; trigger(m);
+                setMsgs([...msgs, {role: 'user', content: m}]); setInput(''); setLoading(true);
                 try {
-                    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            model: "llama-3.3-70b-versatile", 
-                            messages: [{role: "system", content: "You are Universal AI. Witty, sharp, and helpful."}, ...chatMessages.slice(-5), {role: 'user', content: msg}]
-                        })
+                        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: [{role: "system", content: "You are Universal AI. witty and sharp."}, ...msgs.slice(-3), {role: 'user', content: m}]})
                     });
-                    const data = await res.json();
-                    setChatMessages(prev => [...prev, {role: 'assistant', content: data.choices[0].message.content}]);
-                } catch (e) {
-                    setChatMessages(prev => [...prev, {role: 'assistant', content: "⚠️ Connection Error: Check API Key."}]);
-                } finally { setLoading(false); }
+                    const d = await r.json();
+                    setMsgs(prev => [...prev, {role: 'assistant', content: d.choices[0].message.content}]);
+                } catch (e) { setMsgs(prev => [...prev, {role: 'assistant', content: "API Key Error."}]); }
+                setLoading(false);
             };
 
-            // Stock Loop
+            // Market Loop
             useEffect(() => {
-                const interval = setInterval(() => {
-                    setStockPrices(prev => [...prev.slice(1), Math.floor(Math.random() * 60) + 30]);
-                }, 2000);
-                return () => clearInterval(interval);
+                const i = setInterval(() => setPrices(p => [...p.slice(1), Math.floor(Math.random()*50)+25]), 2000);
+                return () => clearInterval(i);
             }, []);
 
-            // Sketch Logic
-            const startDrawing = (e) => {
-                setDrawing(true);
-                const ctx = canvasRef.current.getContext('2d');
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                const y = (e.clientY || e.touches[0].clientY) - rect.top;
-                ctx.beginPath(); ctx.moveTo(x, y);
-                ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
-            };
-            const draw = (e) => {
+            // Drawing Engine
+            const onDraw = (e) => {
                 if (!drawing) return;
-                const ctx = canvasRef.current.getContext('2d');
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                const ctx = cvRef.current.getContext('2d');
+                const r = cvRef.current.getBoundingClientRect();
+                const x = (e.clientX || (e.touches && e.touches[0].clientX)) - r.left;
+                const y = (e.clientY || (e.touches && e.touches[0].clientY)) - r.top;
                 ctx.lineTo(x, y); ctx.stroke();
             };
 
-            if (view === 'auth') {
-                return (
-                    <div className="h-screen flex items-center justify-center bg-slate-950 p-6">
-                        <div className="glass p-10 rounded-[3rem] w-full max-w-md text-center">
-                            <h1 className="text-4xl font-black uppercase mb-8">Intelligence OS</h1>
-                            <input type="password" placeholder="Groq API Key" className="w-full p-4 rounded-2xl bg-slate-900 mb-4 text-center border border-white/10" value={apiKey} onChange={e=>setApiKey(e.target.value)} />
-                            <button onClick={() => apiKey.startsWith('gsk_') ? setView('hub') : alert('Valid Key Required')} className="w-full bg-blue-600 p-4 rounded-2xl font-black uppercase">Initialize</button>
-                        </div>
+            if (view === 'auth') return (
+                <div className="h-screen flex items-center justify-center bg-black p-6">
+                    <div className="glass p-8 rounded-[2.5rem] w-full max-w-sm text-center">
+                        <h1 className="text-2xl font-black mb-6 uppercase tracking-tighter">Intelligence OS</h1>
+                        <input type="password" placeholder="Groq API Key" className="w-full p-4 rounded-xl bg-gray-900 mb-4 text-center border border-white/10" value={apiKey} onChange={e=>setApiKey(e.target.value)} />
+                        <button onClick={() => setView('hub')} className="w-full bg-blue-600 p-4 rounded-xl font-bold uppercase">Initialize</button>
                     </div>
-                );
-            }
+                </div>
+            );
+
+            const apps = [
+                {id:'uni', name:'Universal AI', i:'🧠'}, {id:'stock', name:'Stock Pulse', i:'📈'},
+                {id:'draw', name:'Sketch Pad', i:'🎨'}, {id:'game', name:'Reflex Sync', i:'🎮'},
+                {id:'math', name:'Calculator', i:'🔢'}, {id:'trans', name:'Translator', i:'🌐'},
+                {id:'med', name:'Med-AI', i:'⚕️'}, {id:'gym', name:'Gym Coach', i:'🏋️'},
+                {id:'weather', name:'Weather', i:'☁️'}, {id:'clock', name:'Clock', i:'⌚'},
+                {id:'code', name:'Terminal', i:'💻'}, {id:'chef', name:'Chef Mode', i:'🍳'}
+            ];
 
             return (
                 <div className={`h-screen flex flex-col ${vibrate ? 'vibrate' : ''}`}>
                     {activeApp ? (
-                        <div className="flex-1 flex flex-col bg-slate-950">
-                            <header className="p-5 glass flex justify-between items-center">
-                                <button onClick={() => setActiveApp(null)} className="text-[10px] font-black uppercase bg-white/10 px-4 py-2 rounded-full">← Home</button>
-                                <span className="font-black uppercase text-[10px] tracking-widest">{activeApp.name}</span>
-                                <div className="w-10"></div>
+                        <div className="flex-1 flex flex-col bg-black">
+                            <header className="p-4 glass flex justify-between items-center">
+                                <button onClick={() => setActiveApp(null)} className="text-[10px] font-bold uppercase bg-white/10 px-4 py-1 rounded-full text-blue-400">Hub</button>
+                                <span className="font-bold uppercase text-[10px] tracking-widest">{activeApp.name}</span>
+                                <div className="w-8"></div>
                             </header>
-                            <div className="flex-1 overflow-hidden">
+                            <div className="flex-1 p-4 overflow-y-auto">
                                 {activeApp.id === 'uni' && (
-                                    <div className="p-4 h-full flex flex-col">
-                                        <div className="flex-1 glass rounded-3xl p-4 mb-4 overflow-y-auto space-y-4">
-                                            {chatMessages.map((m, i) => (
-                                                <div key={i} className={`p-4 rounded-2xl max-w-[85%] ${m.role === 'user' ? 'bg-blue-600 ml-auto' : 'glass'}`}>{m.content}</div>
-                                            ))}
-                                            {loading && <div className="text-blue-500 animate-pulse text-xs font-bold">AI THINKING...</div>}
+                                    <div className="h-full flex flex-col">
+                                        <div className="flex-1 glass rounded-2xl p-4 mb-4 overflow-y-auto space-y-2 text-sm">
+                                            {msgs.map((m,i) => <div key={i} className={`p-3 rounded-xl ${m.role==='user'?'bg-blue-600 ml-auto':'bg-gray-800'}`}>{m.content}</div>)}
+                                            {loading && <div className="text-blue-500 text-xs animate-pulse">Syncing...</div>}
                                         </div>
-                                        <div className="flex gap-2">
-                                            <input className="flex-1 p-4 glass rounded-2xl outline-none" value={userInput} onChange={e=>setUserInput(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handleAIChat()} placeholder="Message AI..." />
-                                            <button onClick={handleAIChat} className="bg-blue-600 px-6 rounded-2xl font-black uppercase text-xs">Send</button>
-                                        </div>
+                                        <div className="flex gap-2"><input className="flex-1 p-3 glass rounded-xl outline-none" value={input} onChange={e=>setInput(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handleChat()} /><button onClick={handleChat} className="bg-blue-600 px-4 rounded-xl font-bold uppercase text-xs">Send</button></div>
                                     </div>
                                 )}
                                 {activeApp.id === 'stock' && (
-                                    <div className="p-6 h-full flex flex-col">
-                                        <div className="glass p-6 rounded-3xl mb-4 flex justify-between">
-                                            <div><p className="text-emerald-400 font-bold text-[10px]">GOLD SPOT</p><h2 className="text-3xl font-black">${2400 + stockPrices[6]}</h2></div>
-                                            <div className="text-emerald-400 font-black animate-pulse">LIVE</div>
-                                        </div>
-                                        <div className="flex-1 glass rounded-3xl p-6">
-                                            <svg viewBox="0 0 140 100" className="w-full h-full">
-                                                <polyline fill="none" stroke="#10b981" strokeWidth="3" points={stockPrices.map((p, i) => `${i * 23.3},${100 - p}`).join(' ')} strokeLinejoin="round" className="transition-all duration-700" />
-                                            </svg>
+                                    <div className="space-y-4">
+                                        <div className="glass p-4 rounded-2xl flex justify-between items-center"><span className="text-xs font-bold text-emerald-400">GOLD</span><span className="text-2xl font-black">${2300 + prices[6]}</span></div>
+                                        <div className="glass rounded-2xl p-4 aspect-video overflow-hidden">
+                                            <svg viewBox="0 0 140 100" className="w-full h-full"><polyline fill="none" stroke="#10b981" strokeWidth="4" points={prices.map((p,i)=>`${i*23.3},${100-p}`).join(' ')}/></svg>
                                         </div>
                                     </div>
                                 )}
                                 {activeApp.id === 'draw' && (
-                                    <div className="p-4 h-full flex flex-col">
-                                        <canvas ref={canvasRef} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={()=>setDrawing(false)} onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={()=>setDrawing(false)} />
-                                        <button onClick={()=>{const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="mt-4 bg-blue-600 p-4 rounded-2xl font-black">CLEAR</button>
+                                    <div className="h-full">
+                                        <canvas ref={cvRef} onMouseDown={(e)=>{setDrawing(true); const ctx=cvRef.current.getContext('2d'); ctx.beginPath(); ctx.lineWidth=3; ctx.strokeStyle='#000';}} onMouseMove={onDraw} onMouseUp={()=>setDrawing(false)} onTouchStart={(e)=>{setDrawing(true); const ctx=cvRef.current.getContext('2d'); ctx.beginPath();}} onTouchMove={onDraw} onTouchEnd={()=>setDrawing(false)} />
+                                        <button onClick={()=>{const c=cvRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="w-full mt-4 bg-red-600 p-3 rounded-xl font-bold uppercase text-xs">Clear</button>
                                     </div>
                                 )}
-                                {activeApp.id === 'game' && (
-                                    <div className="flex flex-col items-center h-full justify-center p-10">
-                                        <h2 className="text-8xl font-black mb-12 text-blue-500">{score}</h2>
-                                        <button onPointerDown={()=>setScore(s=>s+1)} className="w-52 h-52 bg-white rounded-full active:scale-90 transition-all shadow-2xl" />
+                                {activeApp.id === 'math' && (
+                                    <div className="grid grid-cols-4 gap-2">
+                                        <div className="col-span-4 glass p-6 rounded-xl text-right text-2xl font-black mb-2">{calc}</div>
+                                        {['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(b => (
+                                            <button key={b} onClick={() => b==='=' ? setCalc(eval(calc).toString()) : setCalc(calc==='0'?b:calc+b)} className="glass p-4 rounded-xl font-bold active:bg-blue-600">{b}</button>
+                                        ))}
+                                        <button onClick={()=>setCalc('0')} className="col-span-4 bg-red-600/20 p-3 rounded-xl text-xs font-bold text-red-500 uppercase">AC</button>
                                     </div>
                                 )}
+                                {activeApp.id === 'game' && <div className="h-full flex flex-col items-center justify-center"><h1 className="text-6xl font-black mb-8">{score}</h1><button onPointerDown={()=>setScore(s=>s+1)} className="w-32 h-32 bg-white rounded-full active:scale-90" /></div>}
+                                {['trans','med','gym','weather','clock','code','chef'].includes(activeApp.id) && <div className="text-center glass p-10 rounded-2xl opacity-50 font-black uppercase tracking-widest text-[10px]">Module Logic Initialized</div>}
                             </div>
                         </div>
                     ) : (
-                        <div className="p-8 h-screen overflow-y-auto">
-                            <header className="text-center mb-12">
-                                <h1 className="text-4xl font-black uppercase italic tracking-tighter">Intelligence OS</h1>
-                                <p className="text-blue-500 font-black text-[10px] tracking-[0.5em] mt-2">v.2026.FINAL</p>
-                            </header>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pb-20">
-                                {[
-                                    {id: 'uni', name: 'Universal AI', icon: '🧠'},
-                                    {id: 'stock', name: 'Stock Pulse', icon: '📈'},
-                                    {id: 'draw', name: 'Sketch Pad', icon: '🎨'},
-                                    {id: 'game', name: 'Reflex Sync', icon: '🎮'},
-                                    {id: 'math', name: 'Calculator', icon: '🔢'},
-                                    {id: 'trans', name: 'Translator', icon: '🌐'},
-                                    {id: 'med', name: 'Med-AI', icon: '⚕️'},
-                                    {id: 'gym', name: 'Gym Coach', icon: '🏋️'},
-                                    {id: 'weather', name: 'Weather', icon: '☁️'},
-                                    {id: 'clock', name: 'World Clock', icon: '⌚'},
-                                    {id: 'code', name: 'Code Lab', icon: '💻'},
-                                    {id: 'chef', name: 'Chef Mode', icon: '🍳'}
-                                ].map(app => (
-                                    <div key={app.id} onClick={() => setActiveApp(app)} className="app-card glass p-8 flex flex-col items-center">
-                                        <span className="text-3xl mb-3">{app.icon}</span>
-                                        <p className="font-black uppercase text-[9px] tracking-widest">{app.name}</p>
+                        <div className="p-6 overflow-y-auto">
+                            <h1 className="text-center text-3xl font-black uppercase tracking-tighter mb-8 italic">Intelligence OS</h1>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-4xl mx-auto pb-10">
+                                {apps.map(a=>(
+                                    <div key={a.id} onClick={()=>setActiveApp(a)} className="glass p-6 flex flex-col items-center app-card">
+                                        <span className="text-2xl mb-2">{a.i}</span>
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-center">{a.name}</p>
                                     </div>
                                 ))}
                             </div>
