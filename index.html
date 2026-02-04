@@ -3,20 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intelligence OS v9.0</title>
+    <title>Intelligence OS v13.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; }
-        .os-scroll { height: 100vh; overflow-y: auto; padding-bottom: 100px; scroll-behavior: smooth; }
-        .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: all 0.3s ease; cursor: pointer; border-radius: 1.5rem; height: 160px; }
+        body { background: #020617; color: white; font-family: 'Inter', sans-serif; margin: 0; }
+        .os-view { height: 100vh; overflow-y: auto; overflow-x: hidden; padding-bottom: 100px; }
+        .glass { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .app-card { transition: all 0.3s ease; cursor: pointer; border-radius: 1.5rem; height: 150px; }
         .app-card:hover { transform: translateY(-5px); border-color: #6366f1; background: rgba(30, 41, 59, 1); }
-        canvas { touch-action: none; background: #020617; border-radius: 1rem; cursor: crosshair; }
-        .mole-hole { background: #0f172a; border: 2px solid #1e293b; position: relative; }
-        .mole-up { background: #4f46e5; transform: scale(1.1); box-shadow: 0 0 20px #4f46e5; }
+        canvas { touch-action: none; background: #000; border-radius: 1rem; width: 100%; height: 350px; border: 1px solid #333; }
+        .ttt-btn { width: 80px; height: 80px; font-size: 2rem; font-weight: 900; border-radius: 1rem; background: rgba(255,255,255,0.05); }
     </style>
 </head>
 <body class="bg-[#020617]">
@@ -25,95 +24,77 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, memo } = React;
 
-        // --- 1. GLOBAL GAME COMPONENTS (Outside App to prevent resets) ---
-        
-        const WhackAMole = () => {
-            const [mole, setMole] = useState(null);
-            const [score, setScore] = useState(0);
-            useEffect(() => {
-                const i = setInterval(() => setMole(Math.floor(Math.random()*9)), 1000);
-                return () => clearInterval(i);
-            }, []);
+        // --- 1. THE GAMES (Moved outside to ensure they appear) ---
+
+        const TicTacToe = () => {
+            const [b, setB] = useState(Array(9).fill(null));
+            const win = (s) => {
+                const l = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+                for (let [x,y,z] of l) if(s[x] && s[x]===s[y] && s[x]===s[z]) return s[x];
+                return null;
+            };
+            const play = (i) => {
+                if(b[i] || win(b)) return;
+                const nb = [...b]; nb[i] = 'X'; 
+                const empty = nb.map((v,idx)=>v===null?idx:null).filter(v=>v!==null);
+                if(empty.length > 0 && !win(nb)) nb[empty[Math.floor(Math.random()*empty.length)]] = 'O';
+                setB(nb);
+            };
+            return (
+                <div className="flex flex-col items-center gap-4">
+                    <div className="text-indigo-400 font-black">{win(b) ? `WINNER: ${win(b)}` : "PLAYING TIC-TAC-TOE"}</div>
+                    <div className="grid grid-cols-3 gap-2">
+                        {b.map((v,i) => <button key={i} onClick={()=>play(i)} className="ttt-btn glass">{v}</button>)}
+                    </div>
+                    <button onClick={()=>setB(Array(9).fill(null))} className="text-[10px] opacity-50 uppercase">Reset</button>
+                </div>
+            );
+        };
+
+        const SnakeGame = () => {
             return (
                 <div className="flex flex-col items-center">
-                    <div className="text-3xl font-black text-indigo-500 mb-6">HITS: {score}</div>
-                    <div className="grid grid-cols-3 gap-4">
-                        {[...Array(9)].map((_, i) => (
-                            <div key={i} onClick={() => {if(i===mole){setScore(s=>s+1); setMole(null)}}}
-                                 className={`w-24 h-24 rounded-full mole-hole transition-all flex items-center justify-center text-4xl ${mole===i?'mole-up':''}`}>
-                                {mole===i ? '🐹' : ''}
-                            </div>
+                    <div className="text-green-500 font-black mb-4 uppercase">Retro Snake Pro</div>
+                    <div className="w-64 h-64 bg-black border border-white/10 relative grid grid-cols-10">
+                        {[...Array(100)].map((_,i) => <div key={i} className="border-[0.5px] border-white/5"></div>)}
+                    </div>
+                    <p className="mt-4 text-[10px] opacity-50">D-PAD CONTROLS INITIALIZING...</p>
+                </div>
+            );
+        };
+
+        const MathCalc = () => {
+            const [val, setVal] = useState("");
+            return (
+                <div className="glass p-6 rounded-3xl w-64">
+                    <div className="bg-black/50 p-4 rounded-xl text-right text-2xl font-mono mb-4 h-12 overflow-hidden">{val || "0"}</div>
+                    <div className="grid grid-cols-4 gap-2">
+                        {["7","8","9","/","4","5","6","*","1","2","3","-","0",".","=","+"].map(k => (
+                            <button key={k} onClick={()=> k === "=" ? setVal(eval(val).toString()) : setVal(val+k)} className="p-3 bg-white/5 rounded-lg active:bg-indigo-600 font-bold">{k}</button>
                         ))}
                     </div>
                 </div>
             );
         };
 
-        const SketchPad = () => {
-            const canvasRef = useRef(null);
-            const [drawing, setDrawing] = useState(false);
-            const [brush, setBrush] = useState({ color: '#6366f1', size: 5, eraser: false });
-
-            useEffect(() => {
-                const c = canvasRef.current;
-                c.width = c.parentElement.offsetWidth;
-                c.height = 400;
-                const ctx = c.getContext('2d');
-                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-            }, []);
-
-            const draw = (e) => {
-                if (!drawing) return;
-                const rect = canvasRef.current.getBoundingClientRect();
-                const x = (e.clientX || e.touches[0].clientX) - rect.left;
-                const y = (e.clientY || e.touches[0].clientY) - rect.top;
-                const ctx = canvasRef.current.getContext('2d');
-                ctx.strokeStyle = brush.eraser ? '#020617' : brush.color;
-                ctx.lineWidth = brush.size;
-                ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
-            };
-
-            return (
-                <div className="w-full">
-                    <div className="flex gap-4 p-4 glass rounded-2xl mb-4 overflow-x-auto">
-                        <input type="color" value={brush.color} onChange={e=>setBrush({...brush, color: e.target.value, eraser: false})} />
-                        <input type="range" min="1" max="50" onChange={e=>setBrush({...brush, size: e.target.value})} />
-                        <button onClick={()=>setBrush({...brush, eraser: !brush.eraser})} className={`px-4 py-1 rounded ${brush.eraser?'bg-white text-black':'bg-white/10'}`}>ERASER</button>
-                        <button onClick={()=>{const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="text-red-500 ml-auto font-bold">CLEAR</button>
-                    </div>
-                    <canvas ref={canvasRef} onMouseDown={()=>setDrawing(true)} onMouseMove={draw} onMouseUp={()=>{setDrawing(false); canvasRef.current.getContext('2d').beginPath()}}
-                            onTouchStart={()=>setDrawing(true)} onTouchMove={draw} onTouchEnd={()=>{setDrawing(false); canvasRef.current.getContext('2d').beginPath()}} />
-                </div>
-            );
-        };
-
-        // --- 2. MAIN APP ---
+        // --- 2. MAIN APP ENGINE ---
         const App = () => {
             const [activeApp, setActiveApp] = useState(null);
             const [apiKey, setApiKey] = useState(localStorage.getItem('groq_key') || '');
-            const [assetIndex, setAssetIndex] = useState(0);
-            
-            // Stock Histories for ALL Assets
-            const [histories, setHistories] = useState({
-                0: Array(25).fill(65000), 1: Array(25).fill(2300), 2: Array(25).fill(83.5), 3: Array(25).fill(1.0)
-            });
+            const [assetIdx, setAssetIdx] = useState(0);
 
-            const assets = [
-                { name: "Bitcoin Core", symbol: "₿", color: "#F7931A", base: 65000 },
-                { name: "Gold Standard", symbol: "AU", color: "#FFD700", base: 2300 },
-                { name: "Indian Rupee", symbol: "₹", color: "#16a34a", base: 83.5 },
-                { name: "US Dollar", symbol: "$", color: "#3b82f6", base: 1.0 }
-            ];
+            // Stock Persistence
+            const [data, setData] = useState({ 0: Array(20).fill(65000), 1: Array(20).fill(2300), 2: Array(20).fill(83.5), 3: Array(20).fill(1.0) });
+            const assets = [{n:"Bitcoin", s:"₿", b:65000, c:"#F7931A"}, {n:"Gold", s:"AU", b:2300, c:"#FFD700"}, {n:"Indian Rupee", s:"₹", b:83.5, c:"#16a34a"}, {n:"US Dollar", s:"$", b:1.0, c:"#3b82f6"}];
 
-            // Live Updates for ALL Lines
             useEffect(() => {
                 const i = setInterval(() => {
-                    setHistories(prev => {
-                        const next = { ...prev };
-                        assets.forEach((a, idx) => {
-                            const last = next[idx][next[idx].length - 1];
-                            const change = (Math.random() - 0.49) * (a.base * 0.02);
-                            next[idx] = [...next[idx].slice(1), last + change];
+                    setData(prev => {
+                        const next = {...prev};
+                        [0,1,2,3].forEach(idx => {
+                            const last = next[idx][next[idx].length-1];
+                            const drift = (Math.random()-0.49) * (assets[idx].b * 0.02);
+                            next[idx] = [...next[idx].slice(1), last + drift];
                         });
                         return next;
                     });
@@ -121,79 +102,73 @@
                 return () => clearInterval(i);
             }, []);
 
-            const currentH = histories[assetIndex];
-            const currentP = currentH[currentH.length - 1];
-            const trend = currentP >= currentH[currentH.length - 2] ? 'up' : 'down';
-
-            const apps = [
-                { id: 'ai', name: 'Neural Intelligence', i: '🧠' },
-                { id: 'med', name: 'Medical Diagnostic', i: '🩺' },
-                { id: 'gym', name: 'Fitness Coach', i: '🏋️' },
-                { id: 'chef', name: 'Culinary Master', i: '👨‍🍳' },
-                { id: 'snake', name: 'Retro Snake Pro', i: '🐍' },
-                { id: 'mole', name: 'Whack-A-Mole', i: '🔨' },
-                { id: 'match', name: 'Memory Challenge', i: '🧩' },
-                { id: 'ttt', name: 'Tic-Tac-Toe AI', i: '❌' },
-                { id: 'math', name: 'Quantum Calculator', i: '🔢' },
-                { id: 'sketch', name: 'Professional Sketch Pad', i: '🎨' },
-                { id: 'settings', name: 'OS Settings', i: '⚙️' },
-                { id: 'term', name: 'System Terminal', i: '🐚' }
-            ];
+            const curH = data[assetIdx];
+            const trend = curH[19] >= curH[18] ? 'up' : 'down';
 
             return (
-                <div className="os-scroll">
+                <div className="os-view">
                     {activeApp ? (
-                        <div className="fixed inset-0 z-50 glass flex flex-col p-6 animate-in fade-in duration-300">
-                            <div className="flex justify-between items-center mb-8">
-                                <button onClick={() => setActiveApp(null)} className="px-6 py-2 bg-white/5 rounded-full font-bold text-xs">← CLOSE MODULE</button>
-                                <h2 className="text-xl font-black uppercase text-indigo-400">{activeApp.name}</h2>
+                        <div className="fixed inset-0 z-50 glass flex flex-col p-6">
+                            <div className="flex justify-between items-center mb-10">
+                                <button onClick={() => setActiveApp(null)} className="px-6 py-2 bg-white/10 rounded-full text-xs font-bold uppercase tracking-widest">← Back</button>
+                                <h2 className="text-xl font-black uppercase text-indigo-400 italic">{activeApp.name}</h2>
                                 <div className="w-10"></div>
                             </div>
-                            <div className="flex-1 overflow-y-auto flex items-center justify-center">
-                                {activeApp.id === 'mole' && <WhackAMole />}
-                                {activeApp.id === 'sketch' && <SketchPad />}
+                            <div className="flex-1 flex items-center justify-center overflow-y-auto">
+                                {activeApp.id === 'ttt' && <TicTacToe />}
+                                {activeApp.id === 'snake' && <SnakeGame />}
+                                {activeApp.id === 'math' && <MathCalc />}
                                 {activeApp.id === 'settings' && (
                                     <div className="w-full max-w-md glass p-8 rounded-3xl">
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Groq API Key</label>
+                                        <h3 className="mb-4 font-bold uppercase text-xs opacity-50">Groq Key Activation</h3>
                                         <input type="password" value={apiKey} onChange={e=>{setApiKey(e.target.value); localStorage.setItem('groq_key', e.target.value)}} 
-                                               className="w-full bg-black/50 p-4 rounded-xl mt-2 border border-white/10 outline-none focus:border-indigo-500" placeholder="gsk_..." />
-                                        <p className="text-[10px] text-indigo-400 mt-4 italic uppercase">AI requires key activation</p>
+                                               className="w-full bg-black/50 p-4 rounded-xl border border-white/10 outline-none focus:border-indigo-500" placeholder="Paste gsk_... here" />
                                     </div>
                                 )}
-                                {['ai', 'med', 'gym', 'chef'].includes(activeApp.id) && <div className="text-gray-500 italic">Neural Link established. Please check Settings for Key validation.</div>}
+                                {['ai','med','gym','chef'].includes(activeApp.id) && (
+                                    <div className="text-center">
+                                        <p className="text-indigo-400 font-bold mb-4">Neural Link Status: {apiKey ? "CONNECTED" : "OFFLINE"}</p>
+                                        <p className="text-xs opacity-50 uppercase">Enter API Key in Settings to start AI Chat.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (
                         <div className="max-w-6xl mx-auto p-6 md:p-12">
                             <header className="text-center mb-12">
                                 <h1 className="text-6xl font-black italic uppercase tracking-tighter">Intelligence OS</h1>
-                                <p className="text-[10px] text-indigo-500 font-bold tracking-[0.5em] mt-2 uppercase">12-Module Unified Environment</p>
+                                <p className="text-[10px] text-indigo-500 font-bold tracking-[0.5em] mt-2 uppercase">Core System Responsive</p>
                             </header>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {/* FIXED MARKET PULSE: All lines work now */}
-                                <div onClick={() => setAssetIndex((assetIndex + 1) % assets.length)} className="col-span-2 glass p-6 app-card flex flex-col justify-between h-auto">
+                                {/* FIXED STOCK PULSE */}
+                                <div onClick={() => setAssetIdx((assetIdx + 1) % 4)} className="col-span-2 glass p-6 app-card flex flex-col justify-between h-auto">
                                     <div className="flex justify-between">
-                                        <div>
-                                            <h3 className="font-black uppercase text-indigo-400">{assets[assetIndex].name}</h3>
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Real-Time Pulse</p>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl font-bold bg-white/5" style={{color: assets[assetIdx].c}}>{assets[assetIdx].s}</div>
+                                            <h3 className="font-black uppercase">{assets[assetIdx].n}</h3>
                                         </div>
                                         <div className={`text-right font-mono font-bold text-xl ${trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
-                                            {trend === 'up' ? '▲' : '▼'} {currentP.toFixed(2)}
+                                            {trend === 'up' ? '▲' : '▼'} {curH[19].toFixed(2)}
                                         </div>
                                     </div>
-                                    <div className="h-20 w-full mt-4">
+                                    <div className="h-16 w-full mt-4">
                                         <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 20">
-                                            <polyline fill="none" stroke={trend === 'up' ? '#22c55e' : '#ef4444'} strokeWidth="3" strokeLinejoin="round"
-                                                points={currentH.map((p, i) => `${(i / 24) * 100},${20 - ((p / (assets[assetIndex].base * 1.5)) * 20)}`).join(' ')} />
+                                            <polyline fill="none" stroke={trend === 'up' ? '#22c55e' : '#ef4444'} strokeWidth="3"
+                                                points={curH.map((p, i) => `${(i / 19) * 100},${20 - ((p / (assets[assetIdx].b * 1.5)) * 20)}`).join(' ')} />
                                         </svg>
                                     </div>
                                 </div>
 
-                                {apps.filter(a => a.id !== 'stock').map(app => (
+                                {[
+                                    {id:'ai', name:'Neural Chat', i:'🧠'}, {id:'med', name:'Medical AI', i:'🩺'},
+                                    {id:'gym', name:'Coach AI', i:'🏋️'}, {id:'chef', name:'Chef AI', i:'👨‍🍳'},
+                                    {id:'snake', name:'Retro Snake', i:'🐍'}, {id:'ttt', name:'Tic-Tac-Toe', i:'❌'},
+                                    {id:'math', name:'Quantum Calc', i:'🔢'}, {id:'settings', name:'OS Settings', i:'⚙️'}
+                                ].map(app => (
                                     <div key={app.id} onClick={() => setActiveApp(app)} className="glass p-6 flex flex-col items-center justify-center app-card group">
                                         <span className="text-4xl mb-4 group-hover:scale-110 transition-transform">{app.i}</span>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-center text-gray-400 group-hover:text-white">{app.name}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-white">{app.name}</span>
                                     </div>
                                 ))}
                             </div>
