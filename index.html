@@ -3,89 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intelligence OS v8.0</title>
+    <title>Intelligence OS v9.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: 'Inter', sans-serif; margin: 0; }
-        /* FIXED: Global Scrollable Container */
-        .os-wrapper { height: 100vh; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; }
+        body { background: #020617; color: white; font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; }
+        .os-scroll { height: 100vh; overflow-y: auto; padding-bottom: 100px; scroll-behavior: smooth; }
         .glass { background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: all 0.3s ease; cursor: pointer; border-radius: 1.5rem; min-height: 140px; }
+        .app-card { transition: all 0.3s ease; cursor: pointer; border-radius: 1.5rem; height: 160px; }
         .app-card:hover { transform: translateY(-5px); border-color: #6366f1; background: rgba(30, 41, 59, 1); }
         canvas { touch-action: none; background: #020617; border-radius: 1rem; cursor: crosshair; }
-        .mole-hole { background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.1); transition: 0.1s; position: relative; overflow: hidden; }
-        .mole-active { background: #4f46e5 !important; transform: scale(1.05); }
+        .mole-hole { background: #0f172a; border: 2px solid #1e293b; position: relative; }
+        .mole-up { background: #4f46e5; transform: scale(1.1); box-shadow: 0 0 20px #4f46e5; }
     </style>
 </head>
 <body class="bg-[#020617]">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect, useRef, memo } = React;
 
-        // --- FIXED: Games moved OUTSIDE to prevent resetting ---
-
+        // --- 1. GLOBAL GAME COMPONENTS (Outside App to prevent resets) ---
+        
         const WhackAMole = () => {
             const [mole, setMole] = useState(null);
             const [score, setScore] = useState(0);
-            const [active, setActive] = useState(false);
-
             useEffect(() => {
-                if (!active) return;
-                const timer = setInterval(() => {
-                    setMole(Math.floor(Math.random() * 9));
-                }, 900);
-                return () => clearInterval(timer);
-            }, [active]);
-
+                const i = setInterval(() => setMole(Math.floor(Math.random()*9)), 1000);
+                return () => clearInterval(i);
+            }, []);
             return (
-                <div className="flex flex-col items-center gap-4">
-                    <div className="text-2xl font-black text-indigo-400">SCORE: {score}</div>
-                    <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col items-center">
+                    <div className="text-3xl font-black text-indigo-500 mb-6">HITS: {score}</div>
+                    <div className="grid grid-cols-3 gap-4">
                         {[...Array(9)].map((_, i) => (
-                            <div key={i} 
-                                 onClick={() => { if(i === mole) { setScore(s => s + 1); setMole(null); }}}
-                                 className={`w-20 h-20 rounded-full mole-hole flex items-center justify-center text-3xl ${mole === i ? 'mole-active' : ''}`}>
-                                {mole === i ? '🐹' : ''}
+                            <div key={i} onClick={() => {if(i===mole){setScore(s=>s+1); setMole(null)}}}
+                                 className={`w-24 h-24 rounded-full mole-hole transition-all flex items-center justify-center text-4xl ${mole===i?'mole-up':''}`}>
+                                {mole===i ? '🐹' : ''}
                             </div>
                         ))}
                     </div>
-                    <button onClick={() => {setActive(true); setScore(0)}} className="mt-4 bg-indigo-600 px-8 py-2 rounded-full font-bold">START GAME</button>
                 </div>
             );
         };
 
-        const TicTacToe = () => {
-            const [board, setBoard] = useState(Array(9).fill(null));
-            const handleClick = (i) => {
-                if (board[i]) return;
-                const b = [...board]; b[i] = 'X'; setBoard(b);
-                setTimeout(() => {
-                    const empty = b.map((v, idx) => v === null ? idx : null).filter(v => v !== null);
-                    if (empty.length > 0) { b[empty[Math.floor(Math.random()*empty.length)]] = 'O'; setBoard([...b]); }
-                }, 400);
+        const SketchPad = () => {
+            const canvasRef = useRef(null);
+            const [drawing, setDrawing] = useState(false);
+            const [brush, setBrush] = useState({ color: '#6366f1', size: 5, eraser: false });
+
+            useEffect(() => {
+                const c = canvasRef.current;
+                c.width = c.parentElement.offsetWidth;
+                c.height = 400;
+                const ctx = c.getContext('2d');
+                ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            }, []);
+
+            const draw = (e) => {
+                if (!drawing) return;
+                const rect = canvasRef.current.getBoundingClientRect();
+                const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                const ctx = canvasRef.current.getContext('2d');
+                ctx.strokeStyle = brush.eraser ? '#020617' : brush.color;
+                ctx.lineWidth = brush.size;
+                ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
             };
+
             return (
-                <div className="grid grid-cols-3 gap-2">
-                    {board.map((v, i) => (
-                        <button key={i} onClick={() => handleClick(i)} className="w-20 h-20 glass rounded-xl text-3xl font-black">{v}</button>
-                    ))}
-                    <button onClick={() => setBoard(Array(9).fill(null))} className="col-span-3 mt-4 text-xs opacity-50 uppercase">Reset Board</button>
+                <div className="w-full">
+                    <div className="flex gap-4 p-4 glass rounded-2xl mb-4 overflow-x-auto">
+                        <input type="color" value={brush.color} onChange={e=>setBrush({...brush, color: e.target.value, eraser: false})} />
+                        <input type="range" min="1" max="50" onChange={e=>setBrush({...brush, size: e.target.value})} />
+                        <button onClick={()=>setBrush({...brush, eraser: !brush.eraser})} className={`px-4 py-1 rounded ${brush.eraser?'bg-white text-black':'bg-white/10'}`}>ERASER</button>
+                        <button onClick={()=>{const c=canvasRef.current; c.getContext('2d').clearRect(0,0,c.width,c.height)}} className="text-red-500 ml-auto font-bold">CLEAR</button>
+                    </div>
+                    <canvas ref={canvasRef} onMouseDown={()=>setDrawing(true)} onMouseMove={draw} onMouseUp={()=>{setDrawing(false); canvasRef.current.getContext('2d').beginPath()}}
+                            onTouchStart={()=>setDrawing(true)} onTouchMove={draw} onTouchEnd={()=>{setDrawing(false); canvasRef.current.getContext('2d').beginPath()}} />
                 </div>
             );
         };
 
+        // --- 2. MAIN APP ---
         const App = () => {
             const [activeApp, setActiveApp] = useState(null);
             const [apiKey, setApiKey] = useState(localStorage.getItem('groq_key') || '');
             const [assetIndex, setAssetIndex] = useState(0);
-
-            // FIXED: Independent price histories for ALL assets
+            
+            // Stock Histories for ALL Assets
             const [histories, setHistories] = useState({
-                0: Array(20).fill(65000), 1: Array(20).fill(2300), 2: Array(20).fill(83.5), 3: Array(20).fill(1.0)
+                0: Array(25).fill(65000), 1: Array(25).fill(2300), 2: Array(25).fill(83.5), 3: Array(25).fill(1.0)
             });
 
             const assets = [
@@ -95,92 +105,95 @@
                 { name: "US Dollar", symbol: "$", color: "#3b82f6", base: 1.0 }
             ];
 
+            // Live Updates for ALL Lines
             useEffect(() => {
-                const interval = setInterval(() => {
+                const i = setInterval(() => {
                     setHistories(prev => {
                         const next = { ...prev };
-                        assets.forEach((_, i) => {
-                            const lastPrice = next[i][next[i].length - 1];
-                            const change = (Math.random() - 0.49) * (assets[i].base * 0.02);
-                            next[i] = [...next[i].slice(1), lastPrice + change];
+                        assets.forEach((a, idx) => {
+                            const last = next[idx][next[idx].length - 1];
+                            const change = (Math.random() - 0.49) * (a.base * 0.02);
+                            next[idx] = [...next[idx].slice(1), last + change];
                         });
                         return next;
                     });
                 }, 2000);
-                return () => clearInterval(interval);
+                return () => clearInterval(i);
             }, []);
 
-            const currentData = histories[assetIndex];
-            const currentPrice = currentData[currentData.length - 1];
-            const trend = currentPrice >= currentData[currentData.length - 2] ? 'up' : 'down';
+            const currentH = histories[assetIndex];
+            const currentP = currentH[currentH.length - 1];
+            const trend = currentP >= currentH[currentH.length - 2] ? 'up' : 'down';
+
+            const apps = [
+                { id: 'ai', name: 'Neural Intelligence', i: '🧠' },
+                { id: 'med', name: 'Medical Diagnostic', i: '🩺' },
+                { id: 'gym', name: 'Fitness Coach', i: '🏋️' },
+                { id: 'chef', name: 'Culinary Master', i: '👨‍🍳' },
+                { id: 'snake', name: 'Retro Snake Pro', i: '🐍' },
+                { id: 'mole', name: 'Whack-A-Mole', i: '🔨' },
+                { id: 'match', name: 'Memory Challenge', i: '🧩' },
+                { id: 'ttt', name: 'Tic-Tac-Toe AI', i: '❌' },
+                { id: 'math', name: 'Quantum Calculator', i: '🔢' },
+                { id: 'sketch', name: 'Professional Sketch Pad', i: '🎨' },
+                { id: 'settings', name: 'OS Settings', i: '⚙️' },
+                { id: 'term', name: 'System Terminal', i: '🐚' }
+            ];
 
             return (
-                <div className="os-wrapper">
+                <div className="os-scroll">
                     {activeApp ? (
                         <div className="fixed inset-0 z-50 glass flex flex-col p-6 animate-in fade-in duration-300">
                             <div className="flex justify-between items-center mb-8">
-                                <button onClick={() => setActiveApp(null)} className="px-6 py-2 bg-white/10 rounded-full font-bold text-xs">← CLOSE</button>
-                                <h2 className="text-xl font-black uppercase tracking-widest text-indigo-400">{activeApp.name}</h2>
+                                <button onClick={() => setActiveApp(null)} className="px-6 py-2 bg-white/5 rounded-full font-bold text-xs">← CLOSE MODULE</button>
+                                <h2 className="text-xl font-black uppercase text-indigo-400">{activeApp.name}</h2>
                                 <div className="w-10"></div>
                             </div>
-                            <div className="flex-1 flex items-center justify-center overflow-y-auto">
+                            <div className="flex-1 overflow-y-auto flex items-center justify-center">
                                 {activeApp.id === 'mole' && <WhackAMole />}
-                                {activeApp.id === 'ttt' && <TicTacToe />}
+                                {activeApp.id === 'sketch' && <SketchPad />}
                                 {activeApp.id === 'settings' && (
-                                    <div className="glass p-8 rounded-3xl w-full max-w-md">
-                                        <h3 className="mb-4 font-bold uppercase tracking-widest">Neural Key Config</h3>
-                                        <input type="password" value={apiKey} onChange={(e)=>{setApiKey(e.target.value); localStorage.setItem('groq_key', e.target.value)}} 
-                                            placeholder="Paste Groq API Key..." className="w-full bg-black/50 p-4 rounded-xl border border-white/10 outline-none" />
+                                    <div className="w-full max-w-md glass p-8 rounded-3xl">
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Groq API Key</label>
+                                        <input type="password" value={apiKey} onChange={e=>{setApiKey(e.target.value); localStorage.setItem('groq_key', e.target.value)}} 
+                                               className="w-full bg-black/50 p-4 rounded-xl mt-2 border border-white/10 outline-none focus:border-indigo-500" placeholder="gsk_..." />
+                                        <p className="text-[10px] text-indigo-400 mt-4 italic uppercase">AI requires key activation</p>
                                     </div>
                                 )}
-                                {activeApp.id === 'sketch' && <div className="text-center opacity-50 uppercase text-[10px]">Sketch Surface Ready (v8.0)</div>}
-                                {activeApp.type === 'ai' && <div className="text-gray-500 italic">Neural Engine Linking... Check Settings.</div>}
+                                {['ai', 'med', 'gym', 'chef'].includes(activeApp.id) && <div className="text-gray-500 italic">Neural Link established. Please check Settings for Key validation.</div>}
                             </div>
                         </div>
                     ) : (
                         <div className="max-w-6xl mx-auto p-6 md:p-12">
-                            <header className="text-center mb-10">
-                                <h1 className="text-5xl font-black tracking-tighter italic uppercase text-white">Intelligence OS</h1>
-                                <p className="text-[10px] text-indigo-500 font-bold tracking-[0.5em] mt-2 uppercase">Fully Integrated 12-Module Core</p>
+                            <header className="text-center mb-12">
+                                <h1 className="text-6xl font-black italic uppercase tracking-tighter">Intelligence OS</h1>
+                                <p className="text-[10px] text-indigo-500 font-bold tracking-[0.5em] mt-2 uppercase">12-Module Unified Environment</p>
                             </header>
 
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {/* FIXED MARKET PULSE: Unique lines for every asset */}
+                                {/* FIXED MARKET PULSE: All lines work now */}
                                 <div onClick={() => setAssetIndex((assetIndex + 1) % assets.length)} className="col-span-2 glass p-6 app-card flex flex-col justify-between h-auto">
                                     <div className="flex justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold" style={{backgroundColor: assets[assetIndex].color + '22', color: assets[assetIndex].color}}>{assets[assetIndex].symbol}</div>
-                                            <h3 className="font-black uppercase tracking-tighter">{assets[assetIndex].name}</h3>
+                                        <div>
+                                            <h3 className="font-black uppercase text-indigo-400">{assets[assetIndex].name}</h3>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase">Real-Time Pulse</p>
                                         </div>
-                                        <div className={`text-right font-mono font-bold ${trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
-                                            {trend === 'up' ? '▲' : '▼'} {currentPrice.toFixed(2)}
+                                        <div className={`text-right font-mono font-bold text-xl ${trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
+                                            {trend === 'up' ? '▲' : '▼'} {currentP.toFixed(2)}
                                         </div>
                                     </div>
-                                    <div className="h-16 w-full mt-4">
+                                    <div className="h-20 w-full mt-4">
                                         <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 20">
                                             <polyline fill="none" stroke={trend === 'up' ? '#22c55e' : '#ef4444'} strokeWidth="3" strokeLinejoin="round"
-                                                points={currentData.map((p, i) => `${(i / 19) * 100},${20 - ((p / (assets[assetIndex].base * 1.5)) * 20)}`).join(' ')} />
+                                                points={currentH.map((p, i) => `${(i / 24) * 100},${20 - ((p / (assets[assetIndex].base * 1.5)) * 20)}`).join(' ')} />
                                         </svg>
                                     </div>
-                                    <p className="text-[8px] text-center opacity-30 mt-2">TAP TO CYCLE ASSETS</p>
                                 </div>
 
-                                {[
-                                    {id:'ai', name:'Neural Intelligence', i:'🧠', type:'ai'},
-                                    {id:'med', name:'Medical Diagnostic', i:'🩺', type:'ai'},
-                                    {id:'gym', name:'Fitness Coach', i:'🏋️', type:'ai'},
-                                    {id:'chef', name:'Culinary Master', i:'👨‍🍳', type:'ai'},
-                                    {id:'snake', name:'Retro Snake Pro', i:'🐍'},
-                                    {id:'mole', name:'Whack-A-Mole', i:'🔨'},
-                                    {id:'match', name:'Memory Challenge', i:'🧩'},
-                                    {id:'ttt', name:'Tic-Tac-Toe AI', i:'❌'},
-                                    {id:'math', name:'Quantum Calc', i:'🔢'},
-                                    {id:'sketch', name:'Sketch Pad Pro', i:'🎨'},
-                                    {id:'settings', name:'OS Settings', i:'⚙️'}
-                                ].map(app => (
-                                    <div key={app.id} onClick={() => setActiveApp(app)} className="glass p-8 flex flex-col items-center justify-center app-card group">
+                                {apps.filter(a => a.id !== 'stock').map(app => (
+                                    <div key={app.id} onClick={() => setActiveApp(app)} className="glass p-6 flex flex-col items-center justify-center app-card group">
                                         <span className="text-4xl mb-4 group-hover:scale-110 transition-transform">{app.i}</span>
-                                        <span className="text-[9px] font-black uppercase tracking-widest text-center text-gray-400">{app.name}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-center text-gray-400 group-hover:text-white">{app.name}</span>
                                     </div>
                                 ))}
                             </div>
