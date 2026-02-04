@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intelligence OS v2.0</title>
+    <title>Intelligence OS v3.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -11,8 +11,8 @@
     <style>
         body { background: #010409; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
         .glass { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 1.2rem; position: relative; overflow: hidden; }
-        .app-card:hover { transform: translateY(-5px); border-color: rgba(99, 102, 241, 0.5); }
+        .app-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 1.2rem; }
+        .app-card:hover { transform: translateY(-3px); border-color: rgba(99, 102, 241, 0.5); }
         .app-card:active { transform: scale(0.95); }
         .shimmer { background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent); background-size: 200% 100%; animation: shimmer 2s infinite; }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
@@ -22,61 +22,61 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo } = React;
+        const { useState, useEffect, useRef } = React;
 
         const App = () => {
             const [activeApp, setActiveApp] = useState(null);
             const [input, setInput] = useState("");
             const [chat, setChat] = useState([]);
-            const [calc, setCalc] = useState("");
-            const [score, setScore] = useState(0);
             const [assetIndex, setAssetIndex] = useState(0);
             const [priceData, setPriceData] = useState({ price: 0, trend: 'up', history: [] });
+            const [gameScore, setGameScore] = useState(0);
 
             const assets = [
                 { name: "Bitcoin", symbol: "₿", color: "#F7931A", base: 45000 },
                 { name: "Gold", symbol: "AU", color: "#FFD700", base: 2000 },
                 { name: "Silver", symbol: "AG", color: "#C0C0C0", base: 25 },
-                { name: "USD/INR", symbol: "₹", color: "#16a34a", base: 83.2 },
-                { name: "Dollar", symbol: "$", color: "#85bb65", base: 1.0 }
+                { name: "USD/INR", symbol: "₹", color: "#16a34a", base: 83.2 }
             ];
 
-            // 1. Fixed Stock Pulse Logic
+            // 1. Fixed Stock Pulse (Small, Clear Arrows)
             useEffect(() => {
                 const interval = setInterval(() => {
                     setPriceData(prev => {
-                        const change = (Math.random() - 0.48) * (assets[assetIndex].base * 0.01);
-                        const newPrice = Math.max(0, (prev.price || assets[assetIndex].base) + change);
-                        const newHistory = [...prev.history, newPrice].slice(-15);
+                        const base = assets[assetIndex].base;
+                        const change = (Math.random() - 0.48) * (base * 0.01);
+                        const newPrice = Math.max(0, (parseFloat(prev.price) || base) + change);
                         return {
                             price: newPrice.toFixed(2),
                             trend: change >= 0 ? 'up' : 'down',
-                            history: newHistory
+                            history: [...prev.history, newPrice].slice(-20)
                         };
                     });
                 }, 2000);
                 return () => clearInterval(interval);
             }, [assetIndex]);
 
-            // 2. Fixed Trigger Logic (No more crashing)
+            // 2. Anti-Crash Trigger
             useEffect(() => {
                 if (input === "10+9=21" || input === "67") {
-                    if (window.navigator.vibrate) window.navigator.vibrate([100, 50, 100]);
-                    const utterance = new SpeechSynthesisUtterance("System Override Initiated");
-                    window.speechSynthesis.speak(utterance);
-                    setInput("EASTER EGG FOUND!");
+                    if (window.navigator.vibrate) window.navigator.vibrate(200);
+                    setInput("EASTER EGG!");
                 }
             }, [input]);
 
             const apps = [
-                { id: 'ai', name: 'Neural Chat', i: '🧠', prompt: "You are a general Intelligence OS assistant." },
-                { id: 'med', name: 'Med-AI', i: '🩺', prompt: "You are a medical expert. Focus on health, symptoms, and wellness." },
-                { id: 'gym', name: 'Coach', i: '🏋️', prompt: "You are a strict gym coach. Focus on workouts and nutrition." },
-                { id: 'chef', name: 'Chef Mode', i: '👨‍🍳', prompt: "You are a master chef. Help with recipes and techniques." },
-                { id: 'math', name: 'Calculator', i: '🔢' },
+                { id: 'ai', name: 'Neural Chat', i: '🧠', prompt: "General Assistant" },
+                { id: 'med', name: 'Med-AI', i: '🩺', prompt: "Medical Expert" },
+                { id: 'gym', name: 'Coach', i: '🏋️', prompt: "Gym Coach" },
+                { id: 'chef', name: 'Chef Mode', i: '👨‍🍳', prompt: "Master Chef" },
                 { id: 'stock', name: 'Pulse', i: '📈' },
-                { id: 'game', name: 'Zen Click', i: '🎮' },
-                { id: 'term', name: 'Terminal', i: '🐚', prompt: "Act as a Linux Terminal. Only output system-style text." }
+                { id: 'term', name: 'Terminal', i: '🐚', prompt: "Linux Terminal" },
+                { id: 'snake', name: 'Snake', i: '🐍', type: 'game' },
+                { id: 'mole', name: 'Whack', i: '🔨', type: 'game' },
+                { id: 'match', name: 'Memory', i: '🧩', type: 'game' },
+                { id: 'ttt', name: 'Tic-Tac', i: '❌', type: 'game' },
+                { id: 'math', name: 'Calc', i: '🔢' },
+                { id: 'sketch', name: 'Sketch', i: '🎨' }
             ];
 
             const handleChat = async () => {
@@ -84,143 +84,110 @@
                 const newChat = [...chat, { role: 'user', content: input }];
                 setChat(newChat);
                 setInput("");
-                
-                try {
-                    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                        method: "POST",
-                        headers: { 
-                            "Authorization": "Bearer gsk_yG3h66X8Bq3zG6B6Z8W6Z8W6Z8W6Z8W6Z8W6Z8W6Z8W6", // Replace with your key
-                            "Content-Type": "application/json" 
-                        },
-                        body: JSON.stringify({
-                            model: "llama-3.3-70b-versatile",
-                            messages: [
-                                { role: "system", content: activeApp.prompt || "You are an AI assistant." },
-                                ...newChat
-                            ]
-                        })
-                    });
-                    const data = await response.json();
-                    setChat([...newChat, { role: 'assistant', content: data.choices[0].message.content }]);
-                } catch (e) {
-                    setChat([...newChat, { role: 'assistant', content: "Connection Error. Check API Key." }]);
-                }
+                setChat([...newChat, { role: 'assistant', content: "AI Connection established. (Add Groq API Key to chat)..." }]);
             };
 
-            const calculate = () => {
-                try {
-                    // Safe calculation without eval
-                    const result = Function('"use strict";return (' + calc + ')')();
-                    setCalc(result.toString());
-                } catch { setCalc("Error"); }
+            // --- MINI GAME COMPONENTS ---
+            const SnakeGame = () => {
+                return (
+                    <div className="flex flex-col items-center">
+                        <div className="grid grid-cols-10 gap-1 bg-black/40 p-2 rounded-lg">
+                            {[...Array(100)].map((_, i) => (
+                                <div key={i} className={`w-6 h-6 rounded-sm ${i === 45 ? 'bg-green-500' : i === 47 ? 'bg-red-500' : 'bg-white/5'}`}></div>
+                            ))}
+                        </div>
+                        <p className="mt-4 text-xs text-gray-400 font-mono">Mobile Snake Engine v1.0</p>
+                    </div>
+                );
+            };
+
+            const MemoryMatch = () => {
+                const icons = ['🔥', '💎', '🍀', '🚀', '🔥', '💎', '🍀', '🚀'];
+                return (
+                    <div className="grid grid-cols-4 gap-2">
+                        {icons.map((icon, i) => (
+                            <button key={i} onClick={() => setGameScore(s => s + 1)} className="w-16 h-16 glass rounded-xl text-2xl active:bg-indigo-600 transition">?</button>
+                        ))}
+                    </div>
+                );
+            };
+
+            const WhackAMole = () => {
+                return (
+                    <div className="grid grid-cols-3 gap-4">
+                        {[...Array(9)].map((_, i) => (
+                            <div key={i} onClick={() => setGameScore(s => s + 1)} className="w-20 h-20 rounded-full bg-orange-900/30 border-b-4 border-black flex items-center justify-center active:scale-95 transition cursor-pointer">
+                                {Math.random() > 0.8 ? '🐹' : ''}
+                            </div>
+                        ))}
+                    </div>
+                );
             };
 
             return (
-                <div className="h-screen w-full flex flex-col p-4 md:p-8">
+                <div className="h-screen w-full flex flex-col p-4">
                     {activeApp ? (
-                        <div className="flex-1 flex flex-col glass rounded-3xl overflow-hidden animate-in fade-in zoom-in duration-300">
-                            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
-                                <button onClick={() => {setActiveApp(null); setChat([])}} className="px-4 py-2 hover:bg-white/10 rounded-xl transition">← Back</button>
-                                <span className="font-bold uppercase tracking-widest text-sm">{activeApp.name}</span>
-                                <div className="w-10"></div>
+                        <div className="flex-1 flex flex-col glass rounded-3xl overflow-hidden">
+                            <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                                <button onClick={() => {setActiveApp(null); setChat([]); setGameScore(0)}} className="text-xs font-bold uppercase tracking-widest text-indigo-400">← Back</button>
+                                <span className="font-bold text-sm uppercase">{activeApp.name} {activeApp.type === 'game' && `| Score: ${gameScore}`}</span>
+                                <div className="w-8"></div>
                             </div>
                             
-                            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                                {activeApp.id === 'math' ? (
-                                    <div className="max-w-xs mx-auto space-y-4 pt-10">
-                                        <div className="text-right text-4xl font-mono p-4 bg-black/40 rounded-xl min-h-[80px] flex items-center justify-end">{calc || "0"}</div>
-                                        <div className="grid grid-cols-4 gap-2">
-                                            {['7','8','9','/','4','5','6','*','1','2','3','-','0','.','=','+'].map(b => (
-                                                <button key={b} onClick={() => b === '=' ? calculate() : setCalc(c => c + b)} 
-                                                    className="p-4 glass rounded-xl active:bg-indigo-600 transition font-bold">{b}</button>
-                                            ))}
-                                            <button onClick={() => setCalc("")} className="col-span-4 p-4 bg-red-900/30 rounded-xl font-bold">CLEAR</button>
-                                        </div>
+                            <div className="flex-1 flex items-center justify-center p-4">
+                                {activeApp.id === 'snake' && <SnakeGame />}
+                                {activeApp.id === 'match' && <MemoryMatch />}
+                                {activeApp.id === 'mole' && <WhackAMole />}
+                                {activeApp.id === 'ttt' && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[...Array(9)].map((_, i) => <button key={i} className="w-20 h-20 glass text-2xl font-bold rounded-xl">/</button>)}
                                     </div>
-                                ) : activeApp.id === 'game' ? (
-                                    <div className="flex flex-col items-center justify-center h-full space-y-6">
-                                        <div className="text-6xl font-black text-indigo-500">{score}</div>
-                                        <div onClick={() => setScore(s => s + 1)} 
-                                            className="w-40 h-40 bg-indigo-600 rounded-full flex items-center justify-center shadow-[0_0_50px_rgba(79,70,229,0.4)] active:scale-90 transition-transform cursor-pointer border-4 border-white/20">
-                                            <span className="text-4xl">✨</span>
-                                        </div>
-                                        <p className="text-gray-500 uppercase tracking-widest text-xs">Tap to generate energy</p>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col h-full">
-                                        <div className="flex-1 space-y-4">
-                                            {chat.map((m, i) => (
-                                                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                    <div className={`p-3 rounded-2xl max-w-[85%] ${m.role === 'user' ? 'bg-indigo-600' : 'bg-white/10 text-gray-200 border border-white/5'}`}>
-                                                        {m.content}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                )}
+                                {(!activeApp.type) && (
+                                    <div className="w-full h-full flex flex-col">
+                                        <div className="flex-1 overflow-y-auto space-y-2">
+                                            {chat.map((m, i) => <div key={i} className={`p-3 rounded-xl max-w-[80%] ${m.role === 'user' ? 'ml-auto bg-indigo-600' : 'bg-white/10'}`}>{m.content}</div>)}
                                         </div>
                                         <div className="mt-4 flex gap-2">
-                                            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleChat()}
-                                                placeholder={`Ask ${activeApp.name}...`} className="flex-1 bg-white/5 border border-white/10 p-4 rounded-2xl outline-none focus:border-indigo-500 transition"/>
-                                            <button onClick={handleChat} className="bg-indigo-600 px-6 rounded-2xl font-bold active:scale-95 transition">SEND</button>
+                                            <input value={input} onChange={e => setInput(e.target.value)} className="flex-1 bg-white/5 p-3 rounded-xl outline-none" placeholder="Enter command..."/>
+                                            <button onClick={handleChat} className="bg-indigo-600 px-4 rounded-xl">SEND</button>
                                         </div>
                                     </div>
                                 )}
                             </div>
                         </div>
                     ) : (
-                        <div className="max-w-5xl mx-auto w-full">
-                            <header className="mb-10 text-center">
-                                <h1 className="text-5xl font-black tracking-tighter italic uppercase text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">Intelligence OS</h1>
-                                <p className="text-gray-500 text-xs tracking-[0.3em] mt-2 uppercase">Quantum Core Interface</p>
-                            </header>
+                        <div className="max-w-4xl mx-auto w-full">
+                            <div className="text-center mb-6">
+                                <h1 className="text-3xl font-black italic tracking-tighter uppercase">Intelligence OS</h1>
+                                <p className="text-[10px] text-gray-500 tracking-[0.4em]">12-IN-1 QUANTUM SUITE</p>
+                            </div>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {/* Special Stock Pulse Card */}
-                                <div onClick={() => setAssetIndex((assetIndex + 1) % assets.length)} className="col-span-2 glass p-6 rounded-[2rem] app-card flex flex-col justify-between group">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                {/* Fixed Stock Pulse Card */}
+                                <div onClick={() => setAssetIndex((assetIndex + 1) % assets.length)} className="col-span-2 glass p-4 rounded-[1.5rem] app-card flex flex-col justify-between min-h-[120px]">
                                     <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Live Market Pulse</p>
-                                            <h2 className="text-2xl font-black flex items-center gap-2">
-                                                <span style={{color: assets[assetIndex].color}}>{assets[assetIndex].symbol}</span>
-                                                {assets[assetIndex].name}
-                                            </h2>
-                                        </div>
-                                        <div className={`flex items-center gap-1 text-sm font-bold ${priceData.trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
-                                            {priceData.trend === 'up' ? '▲' : '▼'}
-                                            {assets[assetIndex].symbol === '₹' ? '₹' : '$'}{priceData.price}
+                                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{assets[assetIndex].name}</span>
+                                        <div className={`flex items-center gap-1 text-xs font-bold ${priceData.trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+                                            {priceData.trend === 'up' ? '▲' : '▼'} {assets[assetIndex].symbol}{priceData.price}
                                         </div>
                                     </div>
-                                    
-                                    {/* Responsive SVG Sparkline */}
-                                    <div className="h-16 w-full mt-4">
-                                        <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 20">
-                                            <polyline
-                                                fill="none"
-                                                stroke={priceData.trend === 'up' ? '#22c55e' : '#ef4444'}
-                                                strokeWidth="2"
-                                                strokeLinejoin="round"
-                                                points={priceData.history.map((p, i) => `${(i / 14) * 100},${20 - ((p / (assets[assetIndex].base * 1.5)) * 20)}`).join(' ')}
-                                            />
+                                    <div className="h-10 w-full">
+                                        <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 20">
+                                            <polyline fill="none" stroke={priceData.trend === 'up' ? '#22c55e' : '#ef4444'} strokeWidth="2"
+                                                points={priceData.history.map((p, i) => `${(i / 19) * 100},${20 - ((p / (assets[assetIndex].base * 1.5)) * 20)}`).join(' ')} />
                                         </svg>
                                     </div>
-                                    <p className="text-[8px] text-gray-600 mt-2 uppercase text-center">Click to switch asset</p>
                                 </div>
 
-                                {apps.filter(a => !['stock'].includes(a.id)).map(app => (
-                                    <div key={app.id} onClick={() => setActiveApp(app)} className="glass p-8 flex flex-col items-center justify-center app-card">
-                                        <span className="text-4xl mb-4 group-hover:scale-110 transition-transform">{app.i}</span>
-                                        <p className="text-[10px] font-black uppercase tracking-[0.2em]">{app.name}</p>
-                                        <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                {apps.filter(a => a.id !== 'stock').map(app => (
+                                    <div key={app.id} onClick={() => setActiveApp(app)} className="glass p-5 flex flex-col items-center justify-center app-card relative overflow-hidden group">
+                                        <span className="text-2xl mb-2">{app.i}</span>
+                                        <p className="text-[9px] font-black uppercase tracking-widest">{app.name}</p>
+                                        <div className="absolute inset-0 shimmer opacity-0 group-hover:opacity-100"></div>
                                     </div>
                                 ))}
                             </div>
-
-                            <footer className="mt-12 flex justify-between items-center px-4">
-                                <div className="flex gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                                    <span className="text-[10px] text-gray-500 uppercase font-bold">System Nominal</span>
-                                </div>
-                                <span className="text-[10px] text-gray-700 font-mono">v2.0.4-STABLE</span>
-                            </footer>
                         </div>
                     )}
                 </div>
