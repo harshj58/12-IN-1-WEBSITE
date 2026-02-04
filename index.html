@@ -9,15 +9,20 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background: #020617; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
-        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; border-radius: 1.5rem; }
-        .app-card:hover { transform: translateY(-5px); border-color: #6366f1; background: rgba(30, 41, 59, 0.9); }
-        .game-grid div { transition: all 0.1s; }
-        canvas { touch-action: none; cursor: crosshair; }
+        body { background: #020617; color: white; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
+        /* Fix: Allow scrolling on the main body but hide scrollbar for clean look */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .app-card { transition: all 0.3s ease; cursor: pointer; border-radius: 1.5rem; height: 140px; }
+        .app-card:hover { transform: translateY(-5px); border-color: #6366f1; background: rgba(30, 41, 59, 1); }
+        
+        canvas { touch-action: none; border-radius: 1rem; }
+        .d-pad button { background: rgba(255,255,255,0.1); padding: 15px; rounded-radius: 12px; }
     </style>
 </head>
-<body>
+<body class="bg-[#020617]">
     <div id="root"></div>
 
     <script type="text/babel">
@@ -25,53 +30,45 @@
 
         const App = () => {
             const [activeApp, setActiveApp] = useState(null);
-            const [input, setInput] = useState("");
-            const [chat, setChat] = useState([]);
             const [assetIndex, setAssetIndex] = useState(0);
             const [priceData, setPriceData] = useState({ price: 0, trend: 'up', history: [] });
 
             const assets = [
                 { name: "Bitcoin Core", symbol: "₿", color: "#F7931A", base: 65000 },
                 { name: "Gold Standard", symbol: "AU", color: "#FFD700", base: 2300 },
-                { name: "Silver Bullion", symbol: "AG", color: "#94a3b8", base: 28 },
                 { name: "Indian Rupee", symbol: "₹", color: "#16a34a", base: 83.5 },
                 { name: "US Dollar", symbol: "$", color: "#3b82f6", base: 1.0 }
             ];
 
-            // --- STOCK PULSE ENGINE ---
-            useEffect(() => {
-                const interval = setInterval(() => {
-                    setPriceData(prev => {
-                        const base = assets[assetIndex].base;
-                        const change = (Math.random() - 0.49) * (base * 0.02);
-                        const newPrice = Math.max(0.01, (parseFloat(prev.price) || base) + change);
-                        return {
-                            price: newPrice.toFixed(2),
-                            trend: change >= 0 ? 'up' : 'down',
-                            history: [...prev.history, newPrice].slice(-25)
-                        };
-                    });
-                }, 2000);
-                return () => clearInterval(interval);
-            }, [assetIndex]);
-
-            // --- APPS LISTING ---
             const apps = [
                 { id: 'ai', name: 'Neural Intelligence', i: '🧠' },
                 { id: 'med', name: 'Medical Diagnostic', i: '🩺' },
                 { id: 'gym', name: 'Fitness Coach', i: '🏋️' },
                 { id: 'chef', name: 'Culinary Master', i: '👨‍🍳' },
                 { id: 'stock', name: 'Market Pulse', i: '📈' },
-                { id: 'term', name: 'System Terminal', i: '🐚' },
                 { id: 'snake', name: 'Retro Snake Pro', i: '🐍', type: 'game' },
                 { id: 'mole', name: 'Whack-A-Mole', i: '🔨', type: 'game' },
                 { id: 'match', name: 'Memory Challenge', i: '🧩', type: 'game' },
                 { id: 'ttt', name: 'Tic-Tac-Toe AI', i: '❌', type: 'game' },
                 { id: 'math', name: 'Quantum Calculator', i: '🔢' },
-                { id: 'sketch', name: 'Professional Sketch Pad', i: '🎨' }
+                { id: 'sketch', name: 'Professional Sketch Pad', i: '🎨' },
+                { id: 'term', name: 'System Terminal', i: '🐚' }
             ];
 
-            // --- SKETCH PAD COMPONENT ---
+            // Stock Logic Fix
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    setPriceData(prev => {
+                        const base = assets[assetIndex].base;
+                        const change = (Math.random() - 0.49) * (base * 0.02);
+                        const newPrice = Math.max(0.01, (parseFloat(prev.price) || base) + change);
+                        return { price: newPrice.toFixed(2), trend: change >= 0 ? 'up' : 'down', history: [...prev.history, newPrice].slice(-20) };
+                    });
+                }, 2000);
+                return () => clearInterval(interval);
+            }, [assetIndex]);
+
+            // --- SKETCH PAD ---
             const SketchPad = () => {
                 const canvasRef = useRef(null);
                 const [isDrawing, setIsDrawing] = useState(false);
@@ -81,145 +78,151 @@
 
                 useEffect(() => {
                     const canvas = canvasRef.current;
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = canvas.offsetWidth;
-                    canvas.height = canvas.offsetHeight;
-                    ctx.lineCap = 'round';
-                    ctx.lineJoin = 'round';
+                    const container = canvas.parentElement;
+                    canvas.width = container.offsetWidth;
+                    canvas.height = container.offsetHeight;
                 }, []);
-
-                const startDrawing = (e) => {
-                    const { offsetX, offsetY } = e.nativeEvent;
-                    const ctx = canvasRef.current.getContext('2d');
-                    ctx.beginPath();
-                    ctx.moveTo(offsetX, offsetY);
-                    setIsDrawing(true);
-                };
 
                 const draw = (e) => {
                     if (!isDrawing) return;
-                    const { offsetX, offsetY } = e.nativeEvent;
-                    const ctx = canvasRef.current.getContext('2d');
+                    const canvas = canvasRef.current;
+                    const ctx = canvas.getContext('2d');
+                    const rect = canvas.getBoundingClientRect();
+                    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                    
                     ctx.strokeStyle = isEraser ? '#020617' : color;
                     ctx.lineWidth = size;
-                    ctx.lineTo(offsetX, offsetY);
+                    ctx.lineCap = 'round';
+                    ctx.lineTo(x, y);
                     ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
                 };
 
                 return (
                     <div className="flex flex-col h-full w-full">
-                        <div className="flex gap-4 p-2 glass rounded-xl mb-2 items-center overflow-x-auto">
-                            <input type="color" value={color} onChange={(e) => {setColor(e.target.value); setIsEraser(false)}} className="w-8 h-8 rounded cursor-pointer" />
-                            <div className="flex gap-1">
+                        <div className="flex flex-wrap gap-2 p-3 glass rounded-2xl mb-4 items-center">
+                            <input type="color" value={color} onChange={(e) => {setColor(e.target.value); setIsEraser(false)}} className="w-10 h-10 rounded-lg cursor-pointer bg-transparent" />
+                            <div className="flex gap-2">
                                 {['#ef4444', '#22c55e', '#3b82f6', '#ffffff'].map(c => (
-                                    <div key={c} onClick={() => {setColor(c); setIsEraser(false)}} className="w-6 h-6 rounded-full border border-white/20" style={{backgroundColor: c}} />
+                                    <button key={c} onClick={() => {setColor(c); setIsEraser(false)}} className="w-8 h-8 rounded-full border-2 border-white/10" style={{backgroundColor: c}} />
                                 ))}
                             </div>
-                            <button onClick={() => setIsEraser(!isEraser)} className={`px-3 py-1 rounded-lg text-xs font-bold ${isEraser ? 'bg-white text-black' : 'bg-white/10'}`}>Eraser</button>
-                            <input type="range" min="1" max="50" value={size} onChange={(e) => setSize(e.target.value)} className="w-24" />
+                            <button onClick={() => setIsEraser(!isEraser)} className={`px-4 py-2 rounded-xl text-xs font-bold ${isEraser ? 'bg-white text-black' : 'bg-white/10'}`}>ERASER</button>
+                            <div className="flex items-center gap-2 ml-2">
+                                <span className="text-[10px]">SIZE</span>
+                                <input type="range" min="1" max="50" value={size} onChange={(e) => setSize(e.target.value)} />
+                            </div>
                             <button onClick={() => {
                                 const ctx = canvasRef.current.getContext('2d');
                                 ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-                            }} className="px-3 py-1 bg-red-500/20 text-red-500 rounded-lg text-xs ml-auto">Clear</button>
+                            }} className="ml-auto px-4 py-2 bg-red-500/20 text-red-500 rounded-xl text-xs font-bold">CLEAR</button>
                         </div>
-                        <canvas ref={canvasRef} onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={() => setIsDrawing(false)} className="flex-1 bg-[#020617] rounded-2xl border border-white/5 shadow-inner" />
+                        <div className="flex-1 bg-[#020617] rounded-3xl border border-white/5 overflow-hidden">
+                            <canvas ref={canvasRef} 
+                                onMouseDown={(e) => {setIsDrawing(true); draw(e)}} 
+                                onMouseMove={draw} 
+                                onMouseUp={() => {setIsDrawing(false); canvasRef.current.getContext('2d').beginPath()}}
+                                onTouchStart={(e) => {setIsDrawing(true); draw(e)}}
+                                onTouchMove={draw}
+                                onTouchEnd={() => {setIsDrawing(false); canvasRef.current.getContext('2d').beginPath()}}
+                            />
+                        </div>
                     </div>
                 );
             };
 
-            // --- GAME: WHACK-A-MOLE ---
-            const WhackAMole = () => {
-                const [activeMole, setActiveMole] = useState(null);
-                const [score, setScore] = useState(0);
-                useEffect(() => {
-                    const timer = setInterval(() => {
-                        setActiveMole(Math.floor(Math.random() * 9));
-                    }, 800);
-                    return () => clearInterval(timer);
-                }, []);
+            // --- TIC TAC TOE ---
+            const TicTacToe = () => {
+                const [board, setBoard] = useState(Array(9).fill(null));
+                const [isX, setIsX] = useState(true);
+                const handleClick = (i) => {
+                    if (board[i] || calculateWinner(board)) return;
+                    const nextBoard = board.slice();
+                    nextBoard[i] = 'X';
+                    setBoard(nextBoard);
+                    // Simple AI move
+                    setTimeout(() => {
+                        const empty = nextBoard.map((v, idx) => v === null ? idx : null).filter(v => v !== null);
+                        if (empty.length > 0 && !calculateWinner(nextBoard)) {
+                            nextBoard[empty[Math.floor(Math.random()*empty.length)]] = 'O';
+                            setBoard([...nextBoard]);
+                        }
+                    }, 500);
+                };
+                const calculateWinner = (squares) => {
+                    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+                    for (let line of lines) {
+                        const [a, b, c] = line;
+                        if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) return squares[a];
+                    }
+                    return null;
+                };
                 return (
-                    <div className="flex flex-col items-center">
-                        <div className="text-2xl font-black mb-4">SCORE: {score}</div>
-                        <div className="grid grid-cols-3 gap-4">
-                            {[...Array(9)].map((_, i) => (
-                                <div key={i} onClick={() => i === activeMole && setScore(s => s + 1)} 
-                                    className={`w-20 h-20 rounded-full glass border-b-8 border-black flex items-center justify-center text-4xl cursor-pointer active:scale-90 transition ${activeMole === i ? 'bg-indigo-500/50' : ''}`}>
-                                    {activeMole === i ? '🐹' : ''}
-                                </div>
-                            ))}
-                        </div>
+                    <div className="grid grid-cols-3 gap-3">
+                        {board.map((val, i) => (
+                            <button key={i} onClick={() => handleClick(i)} className="w-24 h-24 glass text-4xl font-black rounded-2xl hover:bg-white/5">
+                                <span className={val === 'X' ? 'text-indigo-400' : 'text-red-400'}>{val}</span>
+                            </button>
+                        ))}
                     </div>
                 );
             };
 
             return (
-                <div className="h-screen w-full flex flex-col p-4 md:p-10">
+                <div className="min-h-screen w-full flex flex-col bg-[#020617] no-scrollbar overflow-y-auto">
                     {activeApp ? (
-                        <div className="flex-1 flex flex-col glass rounded-[2.5rem] overflow-hidden">
-                            <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
-                                <button onClick={() => setActiveApp(null)} className="px-5 py-2 hover:bg-white/10 rounded-full transition text-sm font-bold">← BACK</button>
-                                <span className="font-black uppercase tracking-[0.2em] text-indigo-400">{activeApp.name}</span>
-                                <div className="w-12"></div>
+                        <div className="fixed inset-0 z-50 flex flex-col glass p-4 md:p-10">
+                            <div className="flex justify-between items-center mb-6">
+                                <button onClick={() => setActiveApp(null)} className="bg-white/10 px-6 py-3 rounded-2xl font-black text-xs tracking-widest">← EXIT SYSTEM</button>
+                                <h2 className="text-xl font-black italic uppercase text-indigo-400">{activeApp.name}</h2>
+                                <div className="w-20"></div>
                             </div>
-                            <div className="flex-1 p-6 flex items-center justify-center overflow-hidden">
+                            <div className="flex-1 flex items-center justify-center overflow-hidden">
                                 {activeApp.id === 'sketch' && <SketchPad />}
-                                {activeApp.id === 'mole' && <WhackAMole />}
-                                {activeApp.id === 'ai' && <div className="text-center italic text-gray-500">Neural Link Offline. Provide Groq Key to initialize...</div>}
-                                {activeApp.id === 'snake' && <div className="text-center font-mono p-10 bg-black/40 rounded-xl">SNAKE_ENGINE v4.0 Initialized<br/>[Keyboard Required]</div>}
-                                {activeApp.id === 'match' && <div className="grid grid-cols-4 gap-4">{[...Array(16)].map((_,i)=><div key={i} className="w-16 h-16 glass rounded-xl flex items-center justify-center text-2xl">?</div>)}</div>}
-                                {activeApp.id === 'ttt' && <div className="grid grid-cols-3 gap-2">{[...Array(9)].map((_,i)=><div key={i} className="w-24 h-24 glass rounded-xl flex items-center justify-center text-4xl font-bold">.</div>)}</div>}
+                                {activeApp.id === 'ttt' && <TicTacToe />}
+                                {activeApp.id === 'mole' && <div className="text-center font-black">WHACK-A-MOLE READY<br/><button className="mt-4 bg-indigo-600 px-8 py-4 rounded-full">START</button></div>}
+                                {activeApp.id === 'snake' && <div className="text-center">SNAKE PRO<br/><div className="grid grid-cols-10 gap-1 mt-4">{[...Array(100)].map((_,i)=><div key={i} className="w-4 h-4 bg-white/5 rounded-sm"></div>)}</div></div>}
+                                {!activeApp.type && activeApp.id !== 'sketch' && <div className="text-gray-500 italic">Neural Engine Linking... Check API Configuration</div>}
                             </div>
                         </div>
                     ) : (
-                        <div className="max-w-6xl mx-auto w-full">
-                            <header className="mb-12 text-center">
-                                <h1 className="text-6xl font-black italic tracking-tighter uppercase bg-clip-text text-transparent bg-gradient-to-br from-white to-gray-500">Intelligence OS</h1>
-                                <p className="text-[10px] text-indigo-400 font-bold tracking-[0.5em] mt-3 uppercase">Quantum Integrated Platform</p>
+                        <div className="p-6 md:p-12 max-w-6xl mx-auto w-full">
+                            <header className="text-center mb-10">
+                                <h1 className="text-5xl font-black tracking-tighter italic uppercase text-white">Intelligence OS</h1>
+                                <p className="text-[10px] text-indigo-500 font-bold tracking-[0.5em] mt-2 uppercase">v5.0 Stable Release</p>
                             </header>
 
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {/* Enhanced Market Card */}
-                                <div onClick={() => setAssetIndex((assetIndex + 1) % assets.length)} className="col-span-2 glass p-6 rounded-[2rem] app-card flex flex-col justify-between group">
-                                    <div className="flex justify-between items-start">
-                                        <div className="flex gap-3 items-center">
-                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl" style={{backgroundColor: assets[assetIndex].color + '22', color: assets[assetIndex].color}}>
+                            {/* Main Grid: Scrollable Section */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-20">
+                                {/* Large Market Card */}
+                                <div onClick={() => setAssetIndex((assetIndex + 1) % assets.length)} className="col-span-2 glass p-6 app-card flex flex-col justify-between group h-auto min-h-[160px]">
+                                    <div className="flex justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-xl font-bold bg-white/5" style={{color: assets[assetIndex].color}}>
                                                 {assets[assetIndex].symbol}
                                             </div>
-                                            <div>
-                                                <h3 className="font-black text-lg">{assets[assetIndex].name}</h3>
-                                                <p className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Global Asset Tracker</p>
-                                            </div>
+                                            <h3 className="font-black text-lg uppercase tracking-tighter">{assets[assetIndex].name}</h3>
                                         </div>
                                         <div className={`text-right ${priceData.trend === 'up' ? 'text-green-400' : 'text-red-400'}`}>
-                                            <div className="text-xl font-mono font-bold tracking-tighter">
-                                                {priceData.trend === 'up' ? '▲' : '▼'} {assets[assetIndex].symbol === '₹' ? '₹' : '$'}{priceData.price}
-                                            </div>
-                                            <div className="text-[10px] font-black opacity-50 uppercase">{priceData.trend === 'up' ? 'Bullish' : 'Bearish'}</div>
+                                            <span className="text-xl font-mono font-bold">{priceData.trend === 'up' ? '▲' : '▼'} {priceData.price}</span>
                                         </div>
                                     </div>
-                                    <div className="h-16 w-full mt-6">
+                                    <div className="h-12 w-full mt-4">
                                         <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 20">
-                                            <polyline fill="none" stroke={priceData.trend === 'up' ? '#22c55e' : '#ef4444'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
-                                                points={priceData.history.map((p, i) => `${(i / 24) * 100},${20 - ((p / (assets[assetIndex].base * 1.5)) * 20)}`).join(' ')} />
+                                            <polyline fill="none" stroke={priceData.trend === 'up' ? '#22c55e' : '#ef4444'} strokeWidth="3" strokeLinejoin="round"
+                                                points={priceData.history.map((p, i) => `${(i / 19) * 100},${20 - ((p / (assets[assetIndex].base * 1.5)) * 20)}`).join(' ')} />
                                         </svg>
                                     </div>
                                 </div>
 
                                 {apps.filter(a => a.id !== 'stock').map(app => (
-                                    <div key={app.id} onClick={() => setActiveApp(app)} className="glass p-8 flex flex-col items-center justify-center app-card group relative overflow-hidden">
-                                        <div className="text-4xl mb-4 transition-transform group-hover:scale-125 duration-500">{app.i}</div>
-                                        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-center text-gray-400 group-hover:text-white transition-colors">{app.name}</h3>
-                                        <div className="absolute -bottom-2 -right-2 text-white/5 text-6xl font-black">{app.i}</div>
+                                    <div key={app.id} onClick={() => setActiveApp(app)} className="glass p-6 flex flex-col items-center justify-center app-card group">
+                                        <span className="text-4xl mb-3 group-hover:scale-110 transition-transform">{app.i}</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-center text-gray-400 group-hover:text-white">{app.name}</span>
                                     </div>
                                 ))}
-                            </div>
-                            
-                            <div className="mt-10 flex justify-center gap-6 text-gray-600 text-[10px] font-bold tracking-widest uppercase">
-                                <span>Core: Stable</span>
-                                <span>•</span>
-                                <span>Network: Encrypted</span>
-                                <span>•</span>
-                                <span>Uptime: 99.9%</span>
                             </div>
                         </div>
                     )}
@@ -231,3 +234,4 @@
     </script>
 </body>
 </html>
+
