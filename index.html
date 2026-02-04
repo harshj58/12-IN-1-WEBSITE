@@ -3,42 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Intelligence OS v15.0</title>
+    <title>Intelligence OS v17.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        body { background: #010409; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
-        .glass { background: rgba(13, 17, 23, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .app-card { transition: 0.2s; cursor: pointer; border-radius: 1.5rem; height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        body { background: #010409; color: white; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
+        .glass { background: rgba(13, 17, 23, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .app-card { transition: 0.2s; cursor: pointer; border-radius: 1.5rem; height: 110px; border: 1px solid transparent; }
+        .app-card:hover { border-color: #6366f1; background: rgba(30, 41, 59, 0.5); }
         .app-card:active { transform: scale(0.95); }
-        .mole-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .hole { width: 80px; height: 80px; background: #161b22; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; border: 2px solid #30363d; cursor: pointer; }
-        .mole-up { background: #5865f2; box-shadow: 0 0 20px #5865f2; }
+        canvas { touch-action: none; background: #000; border-radius: 1rem; border: 1px solid #333; }
+        .snake-dot { width: 10px; height: 10px; position: absolute; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-
     <script type="text/babel">
-        const { useState, useEffect, useRef, useMemo } = React;
+        const { useState, useEffect, useRef, memo } = React;
 
-        // --- PROTECTED CANVAS (SKETCH PAD) ---
-        const SketchPad = () => {
-            const canvasRef = useRef(null);
-            const [isDrawing, setIsDrawing] = useState(false);
+        // --- MODULE: AI NEURAL ENGINE ---
+        const AICore = ({ role, apiKey }) => {
+            const [history, setHistory] = useState([{ role: 'assistant', content: `Identity: ${role}. Ready for commands.` }]);
+            const [input, setInput] = useState('');
+            const [loading, setLoading] = useState(false);
+            const ask = async () => {
+                if(!apiKey) return alert("Enter Groq Key in Settings!");
+                const next = [...history, { role: 'user', content: input }];
+                setHistory(next); setInput(''); setLoading(true);
+                try {
+                    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST",
+                        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: next })
+                    });
+                    const data = await res.json();
+                    setHistory([...next, data.choices[0].message]);
+                } catch (e) { alert("AI Bridge Offline"); }
+                setLoading(false);
+            };
+            return (
+                <div className="w-full max-w-lg h-[450px] flex flex-col glass rounded-3xl p-4">
+                    <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                        {history.map((m, i) => <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`p-3 rounded-2xl max-w-[85%] text-sm ${m.role==='user'?'bg-indigo-600':'bg-white/10'}`}>{m.content}</div></div>)}
+                        {loading && <div className="text-indigo-400 animate-pulse text-[10px] font-black uppercase">Processing...</div>}
+                    </div>
+                    <div className="flex gap-2 bg-black/40 p-2 rounded-2xl">
+                        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&ask()} className="flex-1 bg-transparent px-2 outline-none" placeholder="Talk to Intelligence..." />
+                        <button onClick={ask} className="bg-indigo-600 px-4 py-2 rounded-xl text-xs font-bold">EXEC</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MODULE: SNAKE GAME ---
+        const Snake = () => {
+            const [pos, setPos] = useState([{x:10, y:10}]);
+            const [food, setFood] = useState({x:5, y:5});
+            const [dir, setDir] = useState({x:0, y:-1});
             useEffect(() => {
-                const canvas = canvasRef.current;
-                canvas.width = canvas.offsetWidth;
-                canvas.height = 400;
-                const ctx = canvas.getContext('2d');
-                ctx.lineCap = 'round';
-                ctx.strokeStyle = '#5865f2';
-                ctx.lineWidth = 4;
+                const move = setInterval(() => {
+                    setPos(prev => {
+                        const head = {x: prev[0].x + dir.x, y: prev[0].y + dir.y};
+                        if(head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20) return [{x:10, y:10}];
+                        const next = [head, ...prev.slice(0, -1)];
+                        if(head.x === food.x && head.y === food.y) {
+                            setFood({x: Math.floor(Math.random()*20), y: Math.floor(Math.random()*20)});
+                            return [head, ...prev];
+                        }
+                        return next;
+                    });
+                }, 150);
+                return () => clearInterval(move);
+            }, [dir, food]);
+            return (
+                <div className="flex flex-col items-center">
+                    <div className="relative w-64 h-64 bg-black border border-white/10">
+                        {pos.map((p, i) => <div key={i} className="absolute bg-indigo-500 rounded-sm" style={{left: p.x*12.8, top: p.y*12.8, width: 12, height: 12}} />)}
+                        <div className="absolute bg-red-500 rounded-full" style={{left: food.x*12.8, top: food.y*12.8, width: 12, height: 12}} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-4">
+                        <div /><button onClick={()=>setDir({x:0, y:-1})} className="p-3 glass rounded-xl">↑</button><div />
+                        <button onClick={()=>setDir({x:-1, y:0})} className="p-3 glass rounded-xl">←</button>
+                        <button onClick={()=>setDir({x:0, y:1})} className="p-3 glass rounded-xl">↓</button>
+                        <button onClick={()=>setDir({x:1, y:0})} className="p-3 glass rounded-xl">→</button>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MODULE: SKETCH PAD ---
+        const Sketch = () => {
+            const canvasRef = useRef(null);
+            const [draw, setDraw] = useState(false);
+            useEffect(() => {
+                const c = canvasRef.current;
+                c.width = c.parentElement.offsetWidth; c.height = 350;
+                const ctx = c.getContext('2d'); ctx.lineCap = 'round'; ctx.strokeStyle = '#6366f1'; ctx.lineWidth = 4;
             }, []);
-            const draw = (e) => {
-                if (!isDrawing) return;
+            const drawStroke = (e) => {
+                if(!draw) return;
                 const rect = canvasRef.current.getBoundingClientRect();
                 const x = (e.clientX || e.touches[0].clientX) - rect.left;
                 const y = (e.clientY || e.touches[0].clientY) - rect.top;
@@ -46,145 +111,77 @@
                 ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
             };
             return (
-                <div className="w-full h-full flex flex-col p-4">
-                    <button onClick={() => canvasRef.current.getContext('2d').clearRect(0,0,1000,1000)} className="mb-4 bg-red-500/20 text-red-500 px-4 py-1 rounded-full text-xs font-bold self-end">CLEAR CANVAS</button>
-                    <canvas ref={canvasRef} onMouseDown={() => setIsDrawing(true)} onMouseMove={draw} onMouseUp={() => {setIsDrawing(false); canvasRef.current.getContext('2d').beginPath()}}
-                            onTouchStart={() => setIsDrawing(true)} onTouchMove={draw} onTouchEnd={() => {setIsDrawing(false); canvasRef.current.getContext('2d').beginPath()}}
-                            className="w-full flex-1 bg-black rounded-3xl border border-white/10 touch-none" />
+                <div className="w-full max-w-lg">
+                    <button onClick={() => canvasRef.current.getContext('2d').clearRect(0,0,1000,1000)} className="mb-2 text-[10px] font-bold text-red-500 uppercase">Clear All</button>
+                    <canvas ref={canvasRef} onMouseDown={()=>setDrawing(true)} onMouseMove={drawStroke} onMouseUp={()=>{setDraw(false); canvasRef.current.getContext('2d').beginPath()}} onTouchStart={()=>setDraw(true)} onTouchMove={drawStroke} onTouchEnd={()=>{setDraw(false); canvasRef.current.getContext('2d').beginPath()}} />
                 </div>
             );
         };
 
-        // --- NEURAL ENGINE (AI CHAT) ---
-        const AIChat = ({ apiKey }) => {
-            const [history, setHistory] = useState([{ role: 'assistant', content: 'Neural Link Established. How can I assist?' }]);
-            const [input, setInput] = useState('');
-            const [loading, setLoading] = useState(false);
-
-            const ask = async () => {
-                if (!apiKey) return alert("Missing API Key in Settings!");
-                if (!input.trim()) return;
-                const newHistory = [...history, { role: 'user', content: input }];
-                setHistory(newHistory); setInput(''); setLoading(true);
-                try {
-                    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                        method: "POST",
-                        headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
-                        body: JSON.stringify({ model: "llama-3.3-70b-versatile", messages: newHistory })
-                    });
-                    const data = await res.json();
-                    setHistory([...newHistory, data.choices[0].message]);
-                } catch (e) { alert("Neural Link Error"); }
-                setLoading(false);
-            };
-            return (
-                <div className="w-full max-w-lg h-[500px] flex flex-col glass rounded-3xl overflow-hidden">
-                    <div className="flex-1 p-4 overflow-y-auto space-y-4">
-                        {history.map((m, i) => <div key={i} className={`flex ${m.role==='user'?'justify-end':'justify-start'}`}><div className={`p-3 rounded-2xl max-w-[80%] ${m.role==='user'?'bg-blue-600':'bg-white/10'}`}>{m.content}</div></div>)}
-                        {loading && <div className="text-blue-400 animate-pulse text-xs uppercase font-bold">Thinking...</div>}
-                    </div>
-                    <div className="p-4 bg-black/40 flex gap-2">
-                        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==='Enter'&&ask()} className="flex-1 bg-transparent outline-none border-b border-white/20 px-2" placeholder="Send message..." />
-                        <button onClick={ask} className="bg-blue-600 px-4 py-2 rounded-xl font-bold text-xs">SEND</button>
-                    </div>
-                </div>
-            );
-        };
-
-        // --- GAME ENGINE (WHACK-A-MOLE) ---
-        const WhackAMole = () => {
-            const [active, setActive] = useState(null);
-            const [score, setScore] = useState(0);
-            const [timeLeft, setTimeLeft] = useState(0);
-            useEffect(() => {
-                if (timeLeft <= 0) return;
-                const t = setInterval(() => setTimeLeft(s => s - 1), 1000);
-                const m = setInterval(() => setActive(Math.floor(Math.random()*9)), 700);
-                return () => { clearInterval(t); clearInterval(m); };
-            }, [timeLeft]);
-            return (
-                <div className="flex flex-col items-center gap-6">
-                    <div className="flex gap-10 font-black text-blue-400 italic"><span>SCORE: {score}</span><span>TIME: {timeLeft}s</span></div>
-                    <div className="mole-grid">
-                        {[...Array(9)].map((_, i) => (
-                            <div key={i} onClick={() => {if(i===active && timeLeft > 0){setScore(s=>s+1); setActive(null)}}} className={`hole ${active === i ? 'mole-up' : ''}`}>{active === i ? '🐹' : ''}</div>
-                        ))}
-                    </div>
-                    {timeLeft === 0 && <button onClick={() => {setTimeLeft(30); setScore(0)}} className="bg-blue-600 px-8 py-3 rounded-full font-black italic uppercase">Start Game</button>}
-                </div>
-            );
-        };
-
-        // --- MAIN SYSTEM ---
+        // --- SYSTEM CORE ---
         const App = () => {
-            const [activeApp, setActiveApp] = useState(null);
+            const [active, setActive] = useState(null);
             const [apiKey, setApiKey] = useState(localStorage.getItem('groq_key') || '');
             const [assetIdx, setAssetIdx] = useState(0);
             const [prices, setPrices] = useState({ 0: Array(20).fill(65000), 1: Array(20).fill(2300), 2: Array(20).fill(83.5), 3: Array(20).fill(1.0) });
-            const assets = [{n:"Bitcoin", s:"₿", b:65000, c:"#F7931A"}, {n:"Gold", s:"AU", b:2300, c:"#FFD700"}, {n:"Indian Rupee", s:"₹", b:83.5, c:"#16a34a"}, {n:"US Dollar", s:"$", b:1.0, c:"#3b82f6"}];
+            const assets = [{n:"Bitcoin", s:"₿", b:65000, c:"#F7931A"}, {n:"Gold", s:"AU", b:2300, c:"#FFD700"}, {n:"Rupee", s:"₹", b:83.5, c:"#16a34a"}, {n:"Dollar", s:"$", b:1.0, c:"#3b82f6"}];
 
             useEffect(() => {
-                const interval = setInterval(() => {
+                const i = setInterval(() => {
                     setPrices(prev => {
-                        const next = {...prev};
-                        [0,1,2,3].forEach(i => {
-                            const last = next[i][19];
-                            next[i] = [...next[i].slice(1), last + (Math.random()-0.49) * (assets[i].b * 0.02)];
+                        const n = {...prev};
+                        [0,1,2,3].forEach(idx => {
+                            const last = n[idx][19];
+                            n[idx] = [...n[idx].slice(1), last + (Math.random()-0.49) * (assets[idx].b * 0.02)];
                         });
-                        return next;
+                        return n;
                     });
                 }, 2000);
-                return () => clearInterval(interval);
+                return () => clearInterval(i);
             }, []);
 
             const cur = prices[assetIdx];
             const apps = [
-                { id: 'ai', name: 'Neural Chat', i: '🧠' }, { id: 'mole', name: 'Whack-Mole', i: '🔨' },
-                { id: 'sketch', name: 'Sketch Pro', i: '🎨' }, { id: 'settings', name: 'Settings', i: '⚙️' }
+                { id: 'ai', name: 'Neural Chat', i: '🧠', comp: <AICore role="General Assistant" apiKey={apiKey} /> },
+                { id: 'med', name: 'Medical AI', i: '🩺', comp: <AICore role="Medical Specialist" apiKey={apiKey} /> },
+                { id: 'snake', name: 'Retro Snake', i: '🐍', comp: <Snake /> },
+                { id: 'sketch', name: 'Sketch Pro', i: '🎨', comp: <Sketch /> },
+                { id: 'settings', name: 'Settings', i: '⚙️', comp: (
+                    <div className="glass p-8 rounded-3xl w-full max-w-sm">
+                        <h3 className="text-xs font-black uppercase mb-4 opacity-50">API Authentication</h3>
+                        <input type="password" value={apiKey} onChange={e=>{setApiKey(e.target.value); localStorage.setItem('groq_key', e.target.value)}} className="w-full bg-black/50 p-4 rounded-xl border border-white/10 outline-none focus:border-indigo-500" placeholder="Paste Groq Key..." />
+                    </div>
+                )}
             ];
 
             return (
-                <div className="h-screen w-screen flex flex-col p-6 overflow-hidden">
-                    {activeApp ? (
-                        <div className="fixed inset-0 z-50 glass flex flex-col p-6">
+                <div className="h-screen w-screen flex flex-col p-4 md:p-10 overflow-hidden">
+                    {active ? (
+                        <div className="fixed inset-0 z-50 glass flex flex-col p-6 overflow-y-auto">
                             <div className="flex justify-between items-center mb-10">
-                                <button onClick={() => setActiveApp(null)} className="text-xs font-bold opacity-50 uppercase tracking-widest">← Return to OS</button>
-                                <h2 className="text-xl font-black italic uppercase text-blue-400">{activeApp.name}</h2>
+                                <button onClick={() => setActive(null)} className="text-[10px] font-black uppercase tracking-widest bg-white/10 px-4 py-2 rounded-full">← System Home</button>
+                                <h2 className="text-xl font-black uppercase italic text-indigo-400">{active.name}</h2>
                                 <div className="w-10"></div>
                             </div>
-                            <div className="flex-1 flex items-center justify-center overflow-hidden">
-                                {activeApp.id === 'ai' && <AIChat apiKey={apiKey} />}
-                                {activeApp.id === 'mole' && <WhackAMole />}
-                                {activeApp.id === 'sketch' && <SketchPad />}
-                                {activeApp.id === 'settings' && (
-                                    <div className="w-full max-w-sm glass p-8 rounded-3xl">
-                                        <p className="text-[10px] font-bold opacity-50 uppercase mb-2">Groq API Key</p>
-                                        <input type="password" value={apiKey} onChange={e=>{setApiKey(e.target.value); localStorage.setItem('groq_key', e.target.value)}} className="w-full bg-black/50 p-4 rounded-xl border border-white/10 outline-none" placeholder="gsk_..." />
-                                    </div>
-                                )}
-                            </div>
+                            <div className="flex-1 flex justify-center items-center">{active.comp}</div>
                         </div>
                     ) : (
                         <div className="max-w-4xl mx-auto w-full">
-                            <header className="text-center mb-12">
-                                <h1 className="text-4xl font-black italic tracking-tighter uppercase">Intelligence OS</h1>
-                                <p className="text-[10px] font-bold text-blue-500 tracking-[0.4em] uppercase">Advanced Logic Core</p>
-                            </header>
-
+                            <h1 className="text-center text-4xl font-black italic uppercase tracking-tighter mb-10">Intelligence OS <span className="text-indigo-500 text-xs tracking-widest block mt-2">v17.0 Master Build</span></h1>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div onClick={() => setAssetIdx((assetIdx + 1) % 4)} className="col-span-2 glass p-6 rounded-3xl h-36 flex flex-col justify-between">
-                                    <div className="flex justify-between font-black">
+                                <div onClick={() => setAssetIdx((assetIdx + 1) % 4)} className="col-span-2 glass p-6 rounded-3xl h-32 flex flex-col justify-between cursor-pointer">
+                                    <div className="flex justify-between font-black uppercase text-sm">
                                         <span style={{color: assets[assetIdx].c}}>{assets[assetIdx].s} {assets[assetIdx].n}</span>
                                         <span className={cur[19] > cur[18] ? 'text-green-400' : 'text-red-400'}>{cur[19].toFixed(2)}</span>
                                     </div>
-                                    <svg className="h-12 w-full" preserveAspectRatio="none" viewBox="0 0 100 20">
-                                        <polyline fill="none" stroke={cur[19] > cur[18] ? '#4ade80' : '#f87171'} strokeWidth="3" points={cur.map((p, i) => `${(i / 19) * 100},${20 - ((p / (assets[assetIdx].b * 1.5)) * 20)}`).join(' ')} />
+                                    <svg className="h-10 w-full" preserveAspectRatio="none" viewBox="0 0 100 20">
+                                        <polyline fill="none" stroke={cur[19] > cur[18] ? '#22c55e' : '#ef4444'} strokeWidth="3" points={cur.map((p, i) => `${(i / 19) * 100},${20 - ((p / (assets[assetIdx].b * 1.5)) * 20)}`).join(' ')} />
                                     </svg>
                                 </div>
-                                {apps.map(app => (
-                                    <div key={app.id} onClick={() => setActiveApp(app)} className="glass app-card">
-                                        <span className="text-3xl mb-2">{app.i}</span>
-                                        <span className="text-[9px] font-bold uppercase tracking-widest">{app.name}</span>
+                                {apps.map(a => (
+                                    <div key={a.id} onClick={() => setActive(a)} className="glass app-card">
+                                        <span className="text-3xl mb-2">{a.i}</span>
+                                        <p className="text-[9px] font-black uppercase tracking-widest opacity-50">{a.name}</p>
                                     </div>
                                 ))}
                             </div>
